@@ -9,6 +9,7 @@ import { SakuraParticles } from '../world/SakuraParticles';
 import { PlayerController } from '../entities/player/PlayerController';
 import { VehicleSystem } from '../entities/vehicles/VehicleSystem';
 import { ProjectPavilions } from '../entities/pavilions/ProjectPavilions';
+import { WardrobeBoutique } from '../entities/wardrobe/WardrobeBoutique';
 import { NPCSystem } from '../entities/npcs/NPCSystem';
 import { CameraRig } from './CameraRig';
 import { PostProcessing } from './PostProcessing';
@@ -54,6 +55,7 @@ export function Experience() {
           <PlayerController />
           <VehicleSystem />
           <ProjectPavilions />
+          <WardrobeBoutique />
         </Physics>
 
         <SpringWater />

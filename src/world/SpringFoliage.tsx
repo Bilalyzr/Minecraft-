@@ -4,7 +4,8 @@ import { useFrame } from '@react-three/fiber';
 import { CylinderCollider, RigidBody } from '@react-three/rapier';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { getPBRBlockMaps } from '../textures/pbrTextures';
-import { PORTFOLIO_PROJECTS } from '../config/projects.config';
+import { CUSTOM_PAVILION_SLOTS, PORTFOLIO_PROJECTS } from '../config/projects.config';
+import { WARDROBE_BOUTIQUE_POS } from '../config/character.config';
 import { RIVER_Z_MAX, RIVER_Z_MIN } from '../config/world.config';
 import { useWorldStore } from '../store/useWorldStore';
 
@@ -99,11 +100,22 @@ function isOnRoadOrPlaza(x: number, z: number): boolean {
   if (Math.abs(z + 18) < 4.4 && Math.abs(x) < 39) return true;
   if (Math.abs(z - 13.5) < 4.5 && Math.abs(x) < 48) return true;
   if (Math.abs(z - 50) < 4.5 && Math.abs(x) < 43) return true;
-  // Project Pavilion footprints
+  // 3D Wardrobe Boutique & Style Atelier footprint
+  if (
+    Math.hypot(x - WARDROBE_BOUTIQUE_POS[0], z - WARDROBE_BOUTIQUE_POS[2]) < 9.5
+  ) {
+    return true;
+  }
+  // Project Pavilion footprints (Default + Custom Slots)
   for (const p of PORTFOLIO_PROJECTS) {
     const dx = x - p.position[0];
     const dz = z - p.position[2];
     if (dx * dx + dz * dz < 13.5 * 13.5) return true;
+  }
+  for (const s of CUSTOM_PAVILION_SLOTS) {
+    const dx = x - s.position[0];
+    const dz = z - s.position[2];
+    if (dx * dx + dz * dz < 12.0 * 12.0) return true;
   }
   return false;
 }
@@ -176,7 +188,7 @@ export function SpringFoliage() {
       // Framing Central Blossom Plaza & Fountain
       [-16.5, 0, -9.5],
       [16.5, 0, -9.5],
-      [-17.0, 0, 7.5],
+      [-23.5, 0, 9.5],
       [17.0, 0, 7.5],
       // River Promenade & Bridge Entrances
       [-12.5, 0, 27.5],
@@ -285,7 +297,7 @@ export function SpringFoliage() {
     () => [
       [-13.5, 0, -5],
       [13.5, 0, -5],
-      [-13.5, 0, 4],
+      [-13.5, 0, 7.8],
       [13.5, 0, 4],
       [-7, 0, -11.5],
       [7, 0, -11.5],

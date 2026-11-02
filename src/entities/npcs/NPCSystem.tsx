@@ -10,7 +10,6 @@ import {
   RIVER_Z_MIN,
   WORLD_BRIDGES,
 } from '../../config/world.config';
-import { PORTFOLIO_PROJECTS } from '../../config/projects.config';
 import { useWorldStore } from '../../store/useWorldStore';
 
 interface UnifiedNPCActor {
@@ -80,6 +79,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
   const camDirHelper = useMemo(() => new THREE.Vector3(), []);
   const toNpcHelper = useMemo(() => new THREE.Vector3(), []);
   const openProjectModal = useWorldStore((s) => s.openProjectModal);
+  const visitorName = useWorldStore((s) => s.visitorName);
 
   useFrame(({ camera }, delta) => {
     const store = useWorldStore.getState();
@@ -97,7 +97,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
       setLabelInView(shouldShowTag);
     }
 
-    // Dynamic obstacle list: all 3 vehicles + Central Fountain (prevents NPCs from EVER walking through cars!)
+    // Dynamic obstacle list: all 3 vehicles + Central Fountain + Style Atelier
     const [rx, , rz] = store.vehiclePositions.rover;
     const [kx, , kz] = store.vehiclePositions.kart;
     const [sx, , sz] = store.vehiclePositions.scooter;
@@ -106,6 +106,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
       [kx, kz, 3.1],
       [sx, sz, 2.15],
       [0, -2, 4.65],
+      [-19.5, 1.5, 4.85],
     ];
 
     const distToPlayer = Math.hypot(px - cur.x, pz - cur.z);
@@ -257,8 +258,10 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
               </div>
               <p className="text-[10px] leading-snug text-slate-200">
                 {interactionMode === 'vehicle_yield'
-                  ? 'Whoa, sweet Spring ride! Watch the Sakura blossoms on those corners!'
-                  : actor.dialogue}
+                  ? `Whoa, sweet ride${visitorName ? `, ${visitorName}` : ''}! Watch the Sakura blossoms on those corners!`
+                  : visitorName
+                    ? `Hi ${visitorName}! ${actor.dialogue}`
+                    : actor.dialogue}
               </p>
             </div>
           </Html>
@@ -274,11 +277,13 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
 }
 
 export function NPCSystem() {
+  const projects = useWorldStore((s) => s.projects);
+
   const allActors = useMemo<UnifiedNPCActor[]>(() => {
     const skins = ['#f3cfb3', '#e0ac69', '#c68642', '#ffdbac', '#f1c27d', '#d2996c'];
 
     // 1. Dedicated Project Specialist Characters Walking Near Each Project Pavilion!
-    const projectGuides: UnifiedNPCActor[] = PORTFOLIO_PROJECTS.map((proj, idx) => {
+    const projectGuides: UnifiedNPCActor[] = projects.map((proj, idx) => {
       const sin = Math.sin(proj.rotationY);
       const cos = Math.cos(proj.rotationY);
       const toWorld = (lx: number, lz: number): [number, number] => [
@@ -323,7 +328,7 @@ export function NPCSystem() {
     }));
 
     return [...projectGuides, ...strollers];
-  }, []);
+  }, [projects]);
 
   return (
     <group>

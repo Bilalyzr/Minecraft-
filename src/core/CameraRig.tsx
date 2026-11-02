@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { cameraState } from './cameraState';
 import { useWorldStore } from '../store/useWorldStore';
-import { PORTFOLIO_PROJECTS } from '../config/projects.config';
 
 export function CameraRig() {
   const { camera, gl } = useThree();
@@ -91,7 +90,7 @@ export function CameraRig() {
     let focusZ = pz;
 
     if (store.nearbyProjectId) {
-      const proj = PORTFOLIO_PROJECTS.find((p) => p.id === store.nearbyProjectId);
+      const proj = store.projects.find((p) => p.id === store.nearbyProjectId);
       if (proj) {
         focusX = THREE.MathUtils.lerp(px, proj.position[0], 0.24);
         focusY += 0.75;

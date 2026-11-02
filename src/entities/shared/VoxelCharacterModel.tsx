@@ -2,6 +2,11 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import type {
+  BackAccessoryType,
+  HairStyleType,
+  OutfitStyleType,
+} from '../../config/character.config';
 
 export interface VoxelCharacterProps {
   skinColor?: string;
@@ -10,6 +15,9 @@ export interface VoxelCharacterProps {
   pantsColor?: string;
   hairColor?: string;
   shoeColor?: string;
+  hairStyle?: HairStyleType;
+  outfitStyle?: OutfitStyleType;
+  accessory?: BackAccessoryType;
   hasCape?: boolean;
   capeColor?: string;
   speedRef?: { current: number };
@@ -30,6 +38,9 @@ export function VoxelCharacterModel({
   pantsColor = '#1e293b',
   hairColor = '#1c1917',
   shoeColor = '#f1f5f9',
+  hairStyle = 'classic',
+  outfitStyle = 'hoodie',
+  accessory,
   hasCape = false,
   capeColor = '#ec4899',
   speedRef,
@@ -42,6 +53,9 @@ export function VoxelCharacterModel({
   steerAngle = 0,
   headYawOffset = 0,
 }: VoxelCharacterProps) {
+  const resolvedAccessory: BackAccessoryType =
+    accessory !== undefined ? accessory : hasCape ? 'cape' : 'none';
+
   const rootRef = useRef<THREE.Group>(null);
   const torsoGroupRef = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
@@ -67,6 +81,7 @@ export function VoxelCharacterModel({
       shin: new RoundedBoxGeometry(0.195, 0.32, 0.195, 2, 0.025),
       shoe: new RoundedBoxGeometry(0.215, 0.14, 0.27, 2, 0.03),
       cape: new RoundedBoxGeometry(0.42, 0.66, 0.045, 2, 0.015),
+      backpack: new RoundedBoxGeometry(0.36, 0.44, 0.18, 2, 0.04),
     }),
     []
   );
@@ -77,8 +92,7 @@ export function VoxelCharacterModel({
     const t = clock.getElapsedTime();
     const speed = speedRef ? speedRef.current : staticSpeed;
 
-    // 1. Natural Forward-Facing Seated Driving / Riding Kinematics!
-    // Note: Character faces -Z. Around +X axis, POSITIVE angle rotates downward (-Y) limbs FORWARD (-Z)!
+    // 1. Natural Forward-Facing Seated Driving / Riding Kinematics
     if (isSeated) {
       const isScooter = seatPosture === 'scooter';
 
@@ -93,14 +107,16 @@ export function VoxelCharacterModel({
       }
 
       if (torsoGroupRef.current) {
-        // Gentle relaxed recline against car bucket seat (-0.11 rad) or slight forward poise on scooter (+0.07 rad)
         torsoGroupRef.current.rotation.x = isScooter ? 0.07 : -0.11;
       }
 
-      if (leftThighRef.current && rightThighRef.current && leftShinRef.current && rightShinRef.current) {
-        // Thighs extend FORWARD (-Z) resting comfortably on the seat cushion
+      if (
+        leftThighRef.current &&
+        rightThighRef.current &&
+        leftShinRef.current &&
+        rightShinRef.current
+      ) {
         const thighPitch = isScooter ? 1.32 : 1.44;
-        // Knees bend comfortably downward so shoes rest in the footwell / scooter floorboard!
         const kneeBend = isScooter ? -1.18 : -0.84;
 
         leftThighRef.current.rotation.set(thighPitch, 0.08, 0);
@@ -110,7 +126,6 @@ export function VoxelCharacterModel({
       }
 
       if (leftArmRef.current && rightArmRef.current) {
-        // Arms reach FORWARD (+1.18 rad around +X -> -Z) and slightly inward to hold the steering wheel / handlebars!
         const basePitch = isScooter ? 1.05 : 1.18;
         const wheelDifferential = isScooter ? 0.16 : 0.32;
         const inwardRoll = isScooter ? 0.08 : 0.2;
@@ -130,7 +145,6 @@ export function VoxelCharacterModel({
       }
 
       if (headRef.current) {
-        // Look naturally into the turn (+Y positive rotates -Z toward -X = left)
         headRef.current.rotation.y = THREE.MathUtils.lerp(
           headRef.current.rotation.y,
           steerAngle * 0.48,
@@ -167,7 +181,12 @@ export function VoxelCharacterModel({
       );
     }
 
-    if (leftThighRef.current && rightThighRef.current && leftShinRef.current && rightShinRef.current) {
+    if (
+      leftThighRef.current &&
+      rightThighRef.current &&
+      leftShinRef.current &&
+      rightShinRef.current
+    ) {
       const swingL = isJumping ? 0.45 : isMoving ? Math.sin(p) * strideAmp : 0;
       const swingR = isJumping ? -0.25 : isMoving ? -Math.sin(p) * strideAmp : 0;
 
@@ -184,7 +203,6 @@ export function VoxelCharacterModel({
       );
       rightThighRef.current.rotation.y = 0;
 
-      // Subtle natural knee bend on trailing/lifting leg!
       const kneeL = isJumping ? -0.55 : isMoving ? -Math.max(0, -Math.cos(p)) * 0.42 : 0;
       const kneeR = isJumping ? -0.45 : isMoving ? -Math.max(0, Math.cos(p)) * 0.42 : 0;
       leftShinRef.current.rotation.x = THREE.MathUtils.lerp(
@@ -265,11 +283,12 @@ export function VoxelCharacterModel({
     <group ref={rootRef}>
       {/* Upper Body Group (Pivots from Waist at y = 0.68 for Natural Seat Recline) */}
       <group ref={torsoGroupRef} position={[0, 0.68, 0]}>
-        {/* Head & Layered Hair */}
+        {/* Head, Hairstyle & Headgear */}
         <group ref={headRef} position={[0, 0.88, 0]}>
           <mesh geometry={geos.head} castShadow>
             <meshStandardMaterial color={skinColor} roughness={0.54} />
           </mesh>
+          {/* Base Hair Top & Back */}
           <mesh geometry={geos.hairTop} position={[0, 0.2, 0]} castShadow>
             <meshStandardMaterial color={hairColor} roughness={0.72} />
           </mesh>
@@ -285,6 +304,124 @@ export function VoxelCharacterModel({
             <boxGeometry args={[0.06, 0.2, 0.42]} />
             <meshStandardMaterial color={hairColor} roughness={0.72} />
           </mesh>
+
+          {/* Hairstyle / Headgear Variations */}
+          {hairStyle === 'spiky' && (
+            <group position={[0, 0.3, 0]}>
+              {[-0.14, 0, 0.14].map((sx, idx) => (
+                <mesh
+                  key={idx}
+                  position={[sx, 0.05, -0.06 + idx * 0.04]}
+                  rotation={[0.25, 0, sx * -0.9]}
+                  castShadow
+                >
+                  <boxGeometry args={[0.12, 0.22, 0.16]} />
+                  <meshStandardMaterial color={hairColor} roughness={0.65} />
+                </mesh>
+              ))}
+            </group>
+          )}
+
+          {hairStyle === 'ponytail' && (
+            <group position={[0, 0.05, 0.29]} rotation={[0.28, 0, 0]}>
+              <mesh position={[0, 0.08, 0]}>
+                <boxGeometry args={[0.12, 0.1, 0.1]} />
+                <meshStandardMaterial color={capeColor} roughness={0.4} />
+              </mesh>
+              <mesh position={[0, -0.15, 0.03]} castShadow>
+                <boxGeometry args={[0.16, 0.42, 0.14]} />
+                <meshStandardMaterial color={hairColor} roughness={0.7} />
+              </mesh>
+            </group>
+          )}
+
+          {hairStyle === 'visor' && (
+            <group position={[0, 0.03, -0.245]}>
+              <mesh>
+                <boxGeometry args={[0.5, 0.13, 0.05]} />
+                <meshStandardMaterial
+                  color={capeColor}
+                  emissive={capeColor}
+                  emissiveIntensity={2.2}
+                  roughness={0.15}
+                />
+              </mesh>
+              <mesh position={[0, 0, 0.22]}>
+                <boxGeometry args={[0.52, 0.06, 0.46]} />
+                <meshStandardMaterial color="#0f172a" metalness={0.7} roughness={0.3} />
+              </mesh>
+            </group>
+          )}
+
+          {hairStyle === 'headphones' && (
+            <group>
+              {/* Headband Arch */}
+              <mesh position={[0, 0.29, 0]}>
+                <boxGeometry args={[0.56, 0.06, 0.14]} />
+                <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.3} />
+              </mesh>
+              {/* Left & Right Ear Cups with Glowing Ring */}
+              {[-0.27, 0.27].map((ex, i) => (
+                <group key={i} position={[ex, 0.02, 0]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[0.09, 0.22, 0.22]} />
+                    <meshStandardMaterial color="#0f172a" metalness={0.5} roughness={0.3} />
+                  </mesh>
+                  <mesh position={[ex > 0 ? 0.05 : -0.05, 0, 0]}>
+                    <boxGeometry args={[0.02, 0.14, 0.14]} />
+                    <meshStandardMaterial
+                      color={capeColor}
+                      emissive={capeColor}
+                      emissiveIntensity={1.6}
+                    />
+                  </mesh>
+                </group>
+              ))}
+            </group>
+          )}
+
+          {hairStyle === 'straw_hat' && (
+            <group position={[0, 0.26, 0]}>
+              {/* Wide Straw Brim */}
+              <mesh castShadow>
+                <cylinderGeometry args={[0.48, 0.5, 0.05, 16]} />
+                <meshStandardMaterial color="#fcd34d" roughness={0.75} />
+              </mesh>
+              {/* Hat Crown & Ribbon */}
+              <mesh position={[0, 0.1, 0]} castShadow>
+                <cylinderGeometry args={[0.27, 0.3, 0.18, 16]} />
+                <meshStandardMaterial color="#fde68a" roughness={0.7} />
+              </mesh>
+              <mesh position={[0, 0.04, 0]}>
+                <cylinderGeometry args={[0.305, 0.305, 0.05, 16]} />
+                <meshStandardMaterial color={capeColor} roughness={0.45} />
+              </mesh>
+            </group>
+          )}
+
+          {hairStyle === 'crown' && (
+            <group position={[0, 0.3, 0]}>
+              <mesh castShadow>
+                <boxGeometry args={[0.38, 0.11, 0.38]} />
+                <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} />
+              </mesh>
+              {[-0.14, 0, 0.14].map((cx, i) => (
+                <mesh key={i} position={[cx, 0.09, -0.15]}>
+                  <boxGeometry args={[0.07, 0.09, 0.06]} />
+                  <meshStandardMaterial color="#f59e0b" metalness={0.85} roughness={0.2} />
+                </mesh>
+              ))}
+              <mesh position={[0, 0.01, -0.2]}>
+                <boxGeometry args={[0.08, 0.08, 0.03]} />
+                <meshStandardMaterial
+                  color="#38bdf8"
+                  emissive="#38bdf8"
+                  emissiveIntensity={1.8}
+                />
+              </mesh>
+            </group>
+          )}
+
           {/* Eyes & Brows (Facing -Z forward) */}
           <mesh position={[-0.1, 0.02, -0.235]}>
             <boxGeometry args={[0.075, 0.065, 0.02]} />
@@ -304,7 +441,7 @@ export function VoxelCharacterModel({
           </mesh>
         </group>
 
-        {/* Torso, Layered 3D Spring Hoodie/Jacket & Collar */}
+        {/* Torso & Customizable Outfit Styles */}
         <group position={[0, 0.32, 0]}>
           <mesh geometry={geos.torso} castShadow>
             <meshStandardMaterial color={shirtColor} roughness={0.6} />
@@ -312,20 +449,116 @@ export function VoxelCharacterModel({
           <mesh geometry={geos.jacket} position={[0, 0.01, 0.01]} castShadow>
             <meshStandardMaterial color={jacketColor} roughness={0.48} />
           </mesh>
-          <mesh geometry={geos.hoodCollar} position={[0, 0.3, 0.03]} castShadow>
-            <meshStandardMaterial color={jacketColor} roughness={0.5} />
-          </mesh>
-          <mesh position={[0, 0.01, -0.14]}>
-            <boxGeometry args={[0.13, 0.56, 0.03]} />
-            <meshStandardMaterial color={shirtColor} roughness={0.55} />
-          </mesh>
 
-          {/* Billowing Explorer Cape (Automatically tucked when seated so zero seat clipping!) */}
-          {hasCape && !isSeated && (
+          {/* Outfit Style Variations */}
+          {outfitStyle === 'hoodie' && (
+            <>
+              <mesh geometry={geos.hoodCollar} position={[0, 0.3, 0.03]} castShadow>
+                <meshStandardMaterial color={jacketColor} roughness={0.5} />
+              </mesh>
+              <mesh position={[0, 0.01, -0.14]}>
+                <boxGeometry args={[0.13, 0.56, 0.03]} />
+                <meshStandardMaterial color={shirtColor} roughness={0.55} />
+              </mesh>
+            </>
+          )}
+
+          {outfitStyle === 'blazer' && (
+            <>
+              {/* Executive Shirt V-Neck & Tie */}
+              <mesh position={[0, 0.08, -0.14]}>
+                <boxGeometry args={[0.16, 0.44, 0.03]} />
+                <meshStandardMaterial color={shirtColor} roughness={0.45} />
+              </mesh>
+              <mesh position={[0, 0.05, -0.15]}>
+                <boxGeometry args={[0.055, 0.36, 0.03]} />
+                <meshStandardMaterial color={capeColor} roughness={0.35} />
+              </mesh>
+            </>
+          )}
+
+          {outfitStyle === 'cyber_vest' && (
+            <>
+              <mesh geometry={geos.hoodCollar} position={[0, 0.31, 0.02]} castShadow>
+                <meshStandardMaterial color="#0f172a" roughness={0.35} metalness={0.5} />
+              </mesh>
+              {/* Glowing Cyber Reactor Core Strip */}
+              <mesh position={[0, 0.06, -0.145]}>
+                <boxGeometry args={[0.14, 0.14, 0.035]} />
+                <meshStandardMaterial
+                  color={capeColor}
+                  emissive={capeColor}
+                  emissiveIntensity={2.4}
+                />
+              </mesh>
+              <mesh position={[0, -0.14, -0.145]}>
+                <boxGeometry args={[0.32, 0.04, 0.03]} />
+                <meshStandardMaterial
+                  color={capeColor}
+                  emissive={capeColor}
+                  emissiveIntensity={1.5}
+                />
+              </mesh>
+            </>
+          )}
+
+          {outfitStyle === 'tunic' && (
+            <>
+              {/* Explorer Leather Waist Belt & Golden Buckle */}
+              <mesh position={[0, -0.16, 0.01]}>
+                <boxGeometry args={[0.55, 0.09, 0.32]} />
+                <meshStandardMaterial color="#78350f" roughness={0.6} />
+              </mesh>
+              <mesh position={[0, -0.16, -0.15]}>
+                <boxGeometry args={[0.11, 0.1, 0.03]} />
+                <meshStandardMaterial color="#fbbf24" metalness={0.75} roughness={0.25} />
+              </mesh>
+            </>
+          )}
+
+          {/* Back Accessories (Automatically tucked when seated in car/scooter) */}
+          {!isSeated && resolvedAccessory === 'cape' && (
             <group ref={capeRef} position={[0, 0.28, 0.16]}>
               <mesh geometry={geos.cape} position={[0, -0.32, 0.02]} castShadow>
                 <meshStandardMaterial color={capeColor} roughness={0.42} />
               </mesh>
+            </group>
+          )}
+
+          {!isSeated && resolvedAccessory === 'backpack' && (
+            <group position={[0, 0.02, 0.22]}>
+              <mesh geometry={geos.backpack} castShadow>
+                <meshStandardMaterial color={capeColor} roughness={0.55} />
+              </mesh>
+              <mesh position={[0, -0.06, 0.09]}>
+                <boxGeometry args={[0.26, 0.2, 0.05]} />
+                <meshStandardMaterial color="#1e293b" roughness={0.5} />
+              </mesh>
+            </group>
+          )}
+
+          {!isSeated && resolvedAccessory === 'jetpack' && (
+            <group position={[0, 0.04, 0.21]}>
+              <mesh position={[0, 0, 0]} castShadow>
+                <boxGeometry args={[0.36, 0.36, 0.12]} />
+                <meshStandardMaterial color="#1e293b" metalness={0.65} roughness={0.3} />
+              </mesh>
+              {[-0.12, 0.12].map((jx, idx) => (
+                <group key={idx} position={[jx, 0, 0.05]}>
+                  <mesh castShadow>
+                    <cylinderGeometry args={[0.075, 0.085, 0.42, 12]} />
+                    <meshStandardMaterial color="#cbd5e1" metalness={0.75} roughness={0.25} />
+                  </mesh>
+                  <mesh position={[0, -0.23, 0]}>
+                    <cylinderGeometry args={[0.05, 0.07, 0.08, 10]} />
+                    <meshStandardMaterial
+                      color={capeColor}
+                      emissive={capeColor}
+                      emissiveIntensity={2.8}
+                    />
+                  </mesh>
+                </group>
+              ))}
             </group>
           )}
         </group>

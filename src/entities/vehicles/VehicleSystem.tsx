@@ -6,7 +6,7 @@ import { Html } from '@react-three/drei';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { VEHICLE_SPAWNS, type VehicleId, type VehicleSpawnSpec } from '../../config/world.config';
 import { useWorldStore } from '../../store/useWorldStore';
-import { keyInputState } from '../../core/cameraState';
+import { isTypingInInput, keyInputState } from '../../core/cameraState';
 import { VoxelCharacterModel } from '../shared/VoxelCharacterModel';
 import { soundEngine } from '../../audio/soundEngine';
 
@@ -110,6 +110,7 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
   const nearbyVehicleId = useWorldStore((s) => s.nearbyVehicleId);
   const summonRequest = useWorldStore((s) => s.summonRequest);
   const timeOfDay = useWorldStore((s) => s.timeOfDay);
+  const characterAppearance = useWorldStore((s) => s.characterAppearance);
 
   const isDriven = drivingVehicleId === spec.id;
   const isPromptVisible = !drivingVehicleId && nearbyVehicleId === spec.id;
@@ -615,12 +616,16 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
               {isDriven && (
                 <group position={[-0.38, 0.11, 0.34]}>
                   <VoxelCharacterModel
-                    skinColor="#f2c6a0"
-                    jacketColor="#0ea5e9"
-                    shirtColor="#f8fafc"
-                    pantsColor="#1e293b"
-                    hairColor="#18181b"
-                    shoeColor="#f43f5e"
+                    skinColor={characterAppearance.skinColor}
+                    jacketColor={characterAppearance.jacketColor}
+                    shirtColor={characterAppearance.shirtColor}
+                    pantsColor={characterAppearance.pantsColor}
+                    hairColor={characterAppearance.hairColor}
+                    shoeColor={characterAppearance.shoeColor}
+                    hairStyle={characterAppearance.hairStyle}
+                    outfitStyle={characterAppearance.outfitStyle}
+                    accessory={characterAppearance.accessory}
+                    capeColor={characterAppearance.capeColor}
                     isSeated
                     seatPosture="car"
                     steerAngle={steerVisual}
@@ -765,12 +770,16 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
               {isDriven && (
                 <group position={[-0.36, 0.06, 0.34]}>
                   <VoxelCharacterModel
-                    skinColor="#f2c6a0"
-                    jacketColor="#0ea5e9"
-                    shirtColor="#f8fafc"
-                    pantsColor="#1e293b"
-                    hairColor="#18181b"
-                    shoeColor="#f43f5e"
+                    skinColor={characterAppearance.skinColor}
+                    jacketColor={characterAppearance.jacketColor}
+                    shirtColor={characterAppearance.shirtColor}
+                    pantsColor={characterAppearance.pantsColor}
+                    hairColor={characterAppearance.hairColor}
+                    shoeColor={characterAppearance.shoeColor}
+                    hairStyle={characterAppearance.hairStyle}
+                    outfitStyle={characterAppearance.outfitStyle}
+                    accessory={characterAppearance.accessory}
+                    capeColor={characterAppearance.capeColor}
                     isSeated
                     seatPosture="car"
                     steerAngle={steerVisual}
@@ -879,12 +888,16 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
               {isDriven && (
                 <group position={[0, 0.28, 0.24]}>
                   <VoxelCharacterModel
-                    skinColor="#f2c6a0"
-                    jacketColor="#0ea5e9"
-                    shirtColor="#f8fafc"
-                    pantsColor="#1e293b"
-                    hairColor="#18181b"
-                    shoeColor="#f43f5e"
+                    skinColor={characterAppearance.skinColor}
+                    jacketColor={characterAppearance.jacketColor}
+                    shirtColor={characterAppearance.shirtColor}
+                    pantsColor={characterAppearance.pantsColor}
+                    hairColor={characterAppearance.hairColor}
+                    shoeColor={characterAppearance.shoeColor}
+                    hairStyle={characterAppearance.hairStyle}
+                    outfitStyle={characterAppearance.outfitStyle}
+                    accessory={characterAppearance.accessory}
+                    capeColor={characterAppearance.capeColor}
                     isSeated
                     seatPosture="scooter"
                     steerAngle={steerVisual}
@@ -1047,17 +1060,27 @@ export function VehicleSystem() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
+      if (e.repeat || isTypingInInput(e)) return;
+      const store = useWorldStore.getState();
+      if (
+        !store.hasEnteredWorld ||
+        store.activeModalProjectId ||
+        store.isWardrobeOpen ||
+        store.isProjectCreatorOpen ||
+        store.isResumeModalOpen ||
+        store.isDirectoryOpen
+      ) {
+        return;
+      }
       if (e.code === 'KeyF') {
         toggleMount();
       } else if (e.code === 'KeyV' || e.code === 'Digit1') {
-        useWorldStore.getState().requestSummonVehicle('rover');
+        store.requestSummonVehicle('rover');
       } else if (e.code === 'Digit2') {
-        useWorldStore.getState().requestSummonVehicle('kart');
+        store.requestSummonVehicle('kart');
       } else if (e.code === 'Digit3') {
-        useWorldStore.getState().requestSummonVehicle('scooter');
+        store.requestSummonVehicle('scooter');
       } else if (e.code === 'KeyH') {
-        const store = useWorldStore.getState();
         if (store.drivingVehicleId) {
           store.setHornActive(true);
           soundEngine.playChime('horn');

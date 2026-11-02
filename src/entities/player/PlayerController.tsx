@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier';
 import { VoxelCharacterModel } from '../shared/VoxelCharacterModel';
 import { cameraState, keyInputState } from '../../core/cameraState';
@@ -21,6 +22,23 @@ export function PlayerController() {
 
   const drivingVehicleId = useWorldStore((s) => s.drivingVehicleId);
   const teleportRequest = useWorldStore((s) => s.teleportRequest);
+  const characterAppearance = useWorldStore((s) => s.characterAppearance);
+  const visitorName = useWorldStore((s) => s.visitorName);
+  const visitorRole = useWorldStore((s) => s.visitorRole);
+  const hasEnteredWorld = useWorldStore((s) => s.hasEnteredWorld);
+  const activeModalProjectId = useWorldStore((s) => s.activeModalProjectId);
+  const isWardrobeOpen = useWorldStore((s) => s.isWardrobeOpen);
+  const isProjectCreatorOpen = useWorldStore((s) => s.isProjectCreatorOpen);
+  const isResumeModalOpen = useWorldStore((s) => s.isResumeModalOpen);
+  const isDirectoryOpen = useWorldStore((s) => s.isDirectoryOpen);
+
+  const anyModalOpen =
+    !hasEnteredWorld ||
+    Boolean(activeModalProjectId) ||
+    isWardrobeOpen ||
+    isProjectCreatorOpen ||
+    isResumeModalOpen ||
+    isDirectoryOpen;
 
   // Handle Fast-Travel / Minimap Teleport Requests
   useEffect(() => {
@@ -57,7 +75,6 @@ export function PlayerController() {
       const state = useWorldStore.getState();
       const vPos = state.vehiclePositions[prevDrivingRef.current];
       const yaw = state.playerHeading;
-      // Place character cleanly to the left of the vehicle's driver door using vehicle yaw
       const leftX = -Math.cos(yaw);
       const leftZ = Math.sin(yaw);
       const dismountDist = prevDrivingRef.current === 'scooter' ? 1.55 : 2.35;
@@ -88,8 +105,15 @@ export function PlayerController() {
       return;
     }
 
-    // Pause character movement when a Case Study Modal is open
-    if (store.activeModalProjectId) {
+    // Pause character movement when onboarding or any modal is open
+    if (
+      !store.hasEnteredWorld ||
+      store.activeModalProjectId ||
+      store.isWardrobeOpen ||
+      store.isProjectCreatorOpen ||
+      store.isResumeModalOpen ||
+      store.isDirectoryOpen
+    ) {
       const curVel = rb.linvel();
       rb.setLinvel({ x: 0, y: curVel.y, z: 0 }, true);
       speedRef.current = 0;
@@ -139,7 +163,6 @@ export function PlayerController() {
       moveX = moveDirX * maxWalkSpeed * norm;
       moveZ = moveDirZ * maxWalkSpeed * norm;
 
-      // Smoothly rotate character model toward movement direction (-Z is model forward)
       const targetAngle = Math.atan2(-moveX, -moveZ);
       let diff = targetAngle - headingRef.current;
       while (diff > Math.PI) diff -= Math.PI * 2;
@@ -156,7 +179,6 @@ export function PlayerController() {
     const curVel = rb.linvel();
     const pos = rb.translation();
 
-    // True Physics Raycast Ground Detection (works at ANY elevation: riverbeds, bridges, knolls, Windmill Hill!)
     jumpCooldownRef.current = Math.max(0, jumpCooldownRef.current - delta);
     const downRay = new rapier.Ray({ x: pos.x, y: pos.y, z: pos.z }, { x: 0, y: -1, z: 0 });
     const centerGroundHit = world.castRay(downRay, 1.14, true, undefined, undefined, undefined, rb);
@@ -251,19 +273,36 @@ export function PlayerController() {
       <CapsuleCollider args={[0.48, 0.42]} position={[0, 0, 0]} />
       <group ref={visualGroupRef} position={[0, -0.9, 0]} visible={!drivingVehicleId}>
         <VoxelCharacterModel
-          skinColor="#f2c6a0"
-          jacketColor="#0ea5e9"
-          shirtColor="#f8fafc"
-          pantsColor="#1e293b"
-          hairColor="#18181b"
-          shoeColor="#f43f5e"
-          hasCape
-          capeColor="#f43f5e"
+          skinColor={characterAppearance.skinColor}
+          jacketColor={characterAppearance.jacketColor}
+          shirtColor={characterAppearance.shirtColor}
+          pantsColor={characterAppearance.pantsColor}
+          hairColor={characterAppearance.hairColor}
+          shoeColor={characterAppearance.shoeColor}
+          hairStyle={characterAppearance.hairStyle}
+          outfitStyle={characterAppearance.outfitStyle}
+          accessory={characterAppearance.accessory}
+          capeColor={characterAppearance.capeColor}
           speedRef={speedRef}
           isSprinting={isSprinting}
           isJumping={isJumping}
           isWaving={isWaving}
         />
+
+        {/* Visitor Name & Role Tag Above Player Character */}
+        {!anyModalOpen && visitorName && (
+          <Html position={[0, 2.24, 0]} center zIndexRange={[5, 0]}>
+            <div className="pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-pink-400/40 bg-slate-950/80 px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span>{visitorName}</span>
+              {visitorRole && (
+                <span className="rounded bg-white/10 px-1 py-0.2 font-mono-code text-[8px] text-pink-300">
+                  {visitorRole}
+                </span>
+              )}
+            </div>
+          </Html>
+        )}
       </group>
     </RigidBody>
   );

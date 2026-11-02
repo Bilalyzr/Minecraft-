@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { LocateFixed } from 'lucide-react';
-import { PORTFOLIO_PROJECTS } from '../config/projects.config';
+import { LocateFixed, Shirt } from 'lucide-react';
+import {
+  WARDROBE_BOUTIQUE_POS,
+  WARDROBE_BOUTIQUE_ROT_Y,
+} from '../config/character.config';
+import type { PortfolioProject } from '../config/projects.config';
 import { useWorldStore } from '../store/useWorldStore';
 
-const MAP_WORLD_RANGE = 86; // -86m to +86m mapped to radar (includes Windmill Hill & South Lakeside)
+const MAP_WORLD_RANGE = 86;
 
 function worldToPercent(coord: number): number {
   return Math.max(6, Math.min(94, ((coord + MAP_WORLD_RANGE) / (MAP_WORLD_RANGE * 2)) * 100));
@@ -15,8 +19,10 @@ export function MinimapTeleport() {
   const kartDotRef = useRef<HTMLDivElement>(null);
   const scooterDotRef = useRef<HTMLDivElement>(null);
 
+  const projects = useWorldStore((s) => s.projects);
   const requestTeleport = useWorldStore((s) => s.requestTeleport);
   const nearbyProjectId = useWorldStore((s) => s.nearbyProjectId);
+  const isNearWardrobe = useWorldStore((s) => s.isNearWardrobe);
 
   useEffect(() => {
     let rafId = 0;
@@ -49,10 +55,16 @@ export function MinimapTeleport() {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
-  const teleportToProject = (proj: (typeof PORTFOLIO_PROJECTS)[number]) => {
+  const teleportToProject = (proj: PortfolioProject) => {
     const padX = proj.position[0] + Math.sin(proj.rotationY) * 8.4;
     const padZ = proj.position[2] + Math.cos(proj.rotationY) * 8.4;
     requestTeleport([padX, 0.25, padZ], proj.position);
+  };
+
+  const teleportToWardrobe = () => {
+    const padX = WARDROBE_BOUTIQUE_POS[0] + Math.sin(WARDROBE_BOUTIQUE_ROT_Y) * 6.4;
+    const padZ = WARDROBE_BOUTIQUE_POS[2] + Math.cos(WARDROBE_BOUTIQUE_ROT_Y) * 6.4;
+    requestTeleport([padX, 0.25, padZ], WARDROBE_BOUTIQUE_POS);
   };
 
   return (
@@ -80,7 +92,7 @@ export function MinimapTeleport() {
           />
         ))}
 
-        {/* North Windmill Overlook Hill Landmark Pin (Clickable Fast-Travel!) */}
+        {/* North Windmill Overlook Hill Landmark Pin */}
         <button
           onClick={() => requestTeleport([0, 2.7, -56], [0, 7, -63])}
           title="Teleport to Spring Windmill Hill Overlook"
@@ -90,6 +102,21 @@ export function MinimapTeleport() {
           MILL
         </button>
 
+        {/* 3D Wardrobe & Style Atelier Pin */}
+        <button
+          onClick={teleportToWardrobe}
+          title="Teleport to 3D Sakura Style & Outfit Atelier"
+          style={{
+            left: `${worldToPercent(WARDROBE_BOUTIQUE_POS[0])}%`,
+            top: `${worldToPercent(WARDROBE_BOUTIQUE_POS[2])}%`,
+          }}
+          className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border border-pink-300/80 bg-pink-500 px-1.5 py-0.5 font-mono-code text-[7px] font-bold text-slate-950 shadow-md transition hover:scale-125 ${
+            isNearWardrobe ? 'ring-2 ring-white' : ''
+          }`}
+        >
+          STYLE
+        </button>
+
         {/* Central Blossom Plaza Ring */}
         <div
           className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-pink-300/40 bg-pink-400/15"
@@ -97,7 +124,7 @@ export function MinimapTeleport() {
         />
 
         {/* Clickable Project Pavilion Teleport Pins */}
-        {PORTFOLIO_PROJECTS.map((proj) => {
+        {projects.map((proj) => {
           const isCurrent = nearbyProjectId === proj.id;
           return (
             <button
@@ -148,13 +175,22 @@ export function MinimapTeleport() {
         </div>
       </div>
 
-      <button
-        onClick={() => requestTeleport([0, 0.3, 11], [0, 1.5, -2])}
-        className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/15 bg-slate-950/80 px-2.5 py-1 text-[10px] font-semibold text-slate-300 backdrop-blur-md transition hover:border-white/30 hover:text-white"
-      >
-        <LocateFixed className="h-3 w-3 text-pink-400" />
-        <span>Return to Blossom Plaza</span>
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={teleportToWardrobe}
+          className="flex cursor-pointer items-center gap-1 rounded-xl border border-pink-400/35 bg-slate-950/80 px-2.5 py-1 text-[10px] font-semibold text-pink-200 backdrop-blur-md transition hover:border-pink-300 hover:text-white"
+        >
+          <Shirt className="h-3 w-3 text-pink-400" />
+          <span>3D Style Atelier</span>
+        </button>
+        <button
+          onClick={() => requestTeleport([0, 0.3, 11], [0, 1.5, -2])}
+          className="flex cursor-pointer items-center gap-1 rounded-xl border border-white/15 bg-slate-950/80 px-2.5 py-1 text-[10px] font-semibold text-slate-300 backdrop-blur-md transition hover:border-white/30 hover:text-white"
+        >
+          <LocateFixed className="h-3 w-3 text-emerald-400" />
+          <span>Plaza</span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -4,10 +4,11 @@ import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { Html } from '@react-three/drei';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { PORTFOLIO_PROJECTS, type PortfolioProject } from '../../config/projects.config';
+import { type PortfolioProject } from '../../config/projects.config';
 import { getPBRBlockMaps } from '../../textures/pbrTextures';
 import { createProjectScreenHandle } from '../../textures/projectScreenRenderer';
 import { useWorldStore } from '../../store/useWorldStore';
+import { isTypingInInput } from '../../core/cameraState';
 import { soundEngine } from '../../audio/soundEngine';
 
 function SinglePavilion({ project }: { project: PortfolioProject }) {
@@ -375,7 +376,8 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
               className="font-mono-code text-[9px] font-bold tracking-widest uppercase"
               style={{ color: project.accentColor }}
             >
-              #{project.number} • {project.category}
+              {project.chapterNumber ? `${project.chapterNumber} • ` : `#${project.number} • `}
+              {project.category}
             </div>
             <div className="font-display text-xs font-bold text-white">{project.title}</div>
           </div>
@@ -428,6 +430,7 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
 
 export function ProjectPavilions() {
   const lastActiveRef = useRef<string | null>(null);
+  const projects = useWorldStore((s) => s.projects);
 
   // Check proximity to each Pavilion's front Pressure Pad (works both on foot & while driving!)
   useFrame(() => {
@@ -437,7 +440,7 @@ export function ProjectPavilions() {
     let matchedId: string | null = null;
     let bestDist = 5.4;
 
-    for (const proj of PORTFOLIO_PROJECTS) {
+    for (const proj of store.projects) {
       const padX = proj.position[0] + Math.sin(proj.rotationY) * 6.8;
       const padZ = proj.position[2] + Math.cos(proj.rotationY) * 6.8;
       const dPad = Math.hypot(px - padX, pz - padZ);
@@ -459,19 +462,38 @@ export function ProjectPavilions() {
     }
   });
 
-  // Keyboard [Enter] or [E] opens active project's Full Case Study Modal
+  // Keyboard [Enter] or [E] opens active project's Full Case Study Modal, [N] teleports to Next Story Chapter
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
+      if (e.repeat || isTypingInInput(e)) return;
+      const store = useWorldStore.getState();
+      if (!store.hasEnteredWorld) return;
+
       if (e.code === 'Enter' || e.code === 'KeyE') {
-        const store = useWorldStore.getState();
-        if (!store.activeModalProjectId && store.nearbyProjectId) {
+        if (
+          !store.activeModalProjectId &&
+          !store.isWardrobeOpen &&
+          !store.isProjectCreatorOpen &&
+          !store.isResumeModalOpen &&
+          store.nearbyProjectId
+        ) {
           store.openProjectModal(store.nearbyProjectId);
         }
+      } else if (e.code === 'KeyN') {
+        if (
+          !store.activeModalProjectId &&
+          !store.isWardrobeOpen &&
+          !store.isProjectCreatorOpen &&
+          !store.isResumeModalOpen
+        ) {
+          store.teleportToStoryChapter(store.storyChapterIndex + 1);
+        }
       } else if (e.code === 'Escape') {
-        const store = useWorldStore.getState();
         if (store.activeModalProjectId) store.closeProjectModal();
         if (store.isDirectoryOpen) store.setDirectoryOpen(false);
+        if (store.isWardrobeOpen) store.setWardrobeOpen(false);
+        if (store.isProjectCreatorOpen) store.closeProjectCreator();
+        if (store.isResumeModalOpen) store.setResumeModalOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -480,7 +502,7 @@ export function ProjectPavilions() {
 
   return (
     <group>
-      {PORTFOLIO_PROJECTS.map((project) => (
+      {projects.map((project) => (
         <SinglePavilion key={project.id} project={project} />
       ))}
     </group>

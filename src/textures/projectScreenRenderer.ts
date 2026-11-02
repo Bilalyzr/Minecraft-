@@ -60,17 +60,18 @@ export function createProjectScreenHandle(project: PortfolioProject): AnimatedSc
     }
 
     // Left Column: Project Identity, Category Pill & Live Metrics
+    const badgeLabel = `${(project.chapterNumber || `#${project.number}`).toUpperCase()} • ${project.category.toUpperCase()}`;
     ctx.fillStyle = `${project.accentColor}26`;
     ctx.strokeStyle = project.accentColor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(26, 24, 158, 28, 14);
+    ctx.roundRect(26, 24, Math.max(168, badgeLabel.length * 8.2 + 24), 28, 14);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = project.accentColor;
     ctx.font = '700 12px "JetBrains Mono", monospace';
-    ctx.fillText(`#${project.number} • ${project.category.toUpperCase()}`, 38, 42);
+    ctx.fillText(badgeLabel, 38, 42);
 
     ctx.fillStyle = '#f8fafc';
     ctx.font = '700 28px "Space Grotesk", sans-serif';

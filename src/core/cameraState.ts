@@ -10,8 +10,16 @@ export const cameraState = {
 
 export const keyInputState: Record<string, boolean> = {};
 
+export function isTypingInInput(e?: KeyboardEvent): boolean {
+  const target = (e?.target ?? document.activeElement) as HTMLElement | null;
+  if (!target) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('keydown', (e) => {
+    if (isTypingInInput(e)) return;
     keyInputState[e.code] = true;
   });
   window.addEventListener('keyup', (e) => {
