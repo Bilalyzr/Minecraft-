@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,11 +10,55 @@ import {
   FolderPlus,
   MapPin,
   Sparkles,
+  Wrench,
   X,
 } from 'lucide-react';
 import type { PortfolioProject } from '../config/projects.config';
 import { useWorldStore } from '../store/useWorldStore';
+import { createProjectScreenHandle } from '../textures/projectScreenRenderer';
 import { sanitizeHttpUrl } from '../utils/validation';
+
+function LiveProjectBannerCanvas({ project }: { project: PortfolioProject }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const handle = createProjectScreenHandle(project);
+    const canvas = handle.texture.image as HTMLCanvasElement;
+    canvas.className = 'h-full w-full object-cover';
+    host.innerHTML = '';
+    host.appendChild(canvas);
+
+    let rafId = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      handle.update((now - start) / 1000);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      handle.dispose();
+      host.innerHTML = '';
+    };
+  }, [project]);
+
+  return (
+    <div
+      ref={hostRef}
+      className="aspect-video w-full overflow-hidden rounded-2xl border border-white/12 bg-slate-950 shadow-inner"
+    />
+  );
+}
+
+function getChapterKindLabel(project: PortfolioProject): string {
+  if (project.id === 'sasha-infinity') return 'Industry Experience';
+  if (project.id === 'sona-academics') return 'Education & Degree';
+  if (project.id === 'achievements-hall') return 'Honors & Certs';
+  return 'Featured Project';
+}
 
 export function ProjectModal() {
   const projects = useWorldStore((s) => s.projects);
@@ -25,6 +70,8 @@ export function ProjectModal() {
   const openProjectCreator = useWorldStore((s) => s.openProjectCreator);
   const requestTeleport = useWorldStore((s) => s.requestTeleport);
   const visitedProjectIds = useWorldStore((s) => s.visitedProjectIds);
+  const isStudioMode = useWorldStore((s) => s.isStudioMode);
+  const setStudioMode = useWorldStore((s) => s.setStudioMode);
 
   const projectIndex = projects.findIndex((p) => p.id === activeModalProjectId);
   const project = projectIndex >= 0 ? projects[projectIndex] : null;
@@ -32,7 +79,7 @@ export function ProjectModal() {
   const teleportToPavilion = (proj: PortfolioProject) => {
     const padX = proj.position[0] + Math.sin(proj.rotationY) * 8.2;
     const padZ = proj.position[2] + Math.cos(proj.rotationY) * 8.2;
-    requestTeleport([padX, 0.2, padZ], proj.position);
+    requestTeleport([padX, 0.25, padZ], proj.position);
   };
 
   // 1. All-Projects Quick Directory & Story Chapter Index
@@ -46,17 +93,34 @@ export function ProjectModal() {
                 Story Chapters ({visitedProjectIds.length}/{projects.length} visited)
               </div>
               <h2 className="font-display text-xl font-bold text-white">
-                Project Pavilions
+                World Chapters & Landmarks
               </h2>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => openProjectCreator(null)}
-                className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-3.5 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/35"
+                type="button"
+                onClick={() => setStudioMode(!isStudioMode)}
+                title="Toggle Portfolio Creator / Edit Mode"
+                className={`flex cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                  isStudioMode
+                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-200'
+                    : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/15 hover:text-white'
+                }`}
               >
-                <FolderPlus className="h-4 w-4 text-emerald-300" />
-                <span>Add Project</span>
+                <Wrench className="h-3.5 w-3.5" />
+                <span>{isStudioMode ? 'Studio: On' : 'Studio Mode'}</span>
               </button>
+
+              {isStudioMode && (
+                <button
+                  onClick={() => openProjectCreator(null)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-3.5 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/35"
+                >
+                  <FolderPlus className="h-4 w-4 text-emerald-300" />
+                  <span>Add Project</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setDirectoryOpen(false)}
                 className="cursor-pointer rounded-xl border border-white/15 bg-white/5 p-2 text-slate-300 transition hover:bg-white/15 hover:text-white"
@@ -83,7 +147,7 @@ export function ProjectModal() {
                           color: proj.accentColor,
                         }}
                       >
-                        {proj.chapterNumber || `Project ${proj.number}`} · {proj.category}
+                        {proj.chapterNumber || `Chapter ${proj.number}`} · {getChapterKindLabel(proj)}
                       </span>
                       {isVisited && (
                         <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
@@ -115,7 +179,7 @@ export function ProjectModal() {
                       className="flex-1 cursor-pointer rounded-xl py-2 text-xs font-bold text-slate-950 transition hover:brightness-110"
                       style={{ backgroundColor: proj.accentColor }}
                     >
-                      Read Story & Case Study
+                      Explore Case Study
                     </button>
                     <button
                       onClick={() => teleportToPavilion(proj)}
@@ -124,13 +188,15 @@ export function ProjectModal() {
                       <MapPin className="h-3.5 w-3.5 text-pink-300" />
                       <span>Teleport 3D</span>
                     </button>
-                    <button
-                      onClick={() => openProjectCreator(proj.id)}
-                      title="Edit Project Info"
-                      className="cursor-pointer rounded-xl border border-white/15 bg-white/5 p-2 text-slate-300 transition hover:bg-white/15 hover:text-white"
-                    >
-                      <Edit3 className="h-3.5 w-3.5" />
-                    </button>
+                    {isStudioMode && (
+                      <button
+                        onClick={() => openProjectCreator(proj.id)}
+                        title="Edit Project Info"
+                        className="cursor-pointer rounded-xl border border-white/15 bg-white/5 p-2 text-slate-300 transition hover:bg-white/15 hover:text-white"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -168,7 +234,7 @@ export function ProjectModal() {
                   color: project.accentColor,
                 }}
               >
-                {project.chapterNumber || `PROJECT #${project.number}`} • {project.category}
+                {project.chapterNumber || `PROJECT #${project.number}`} · {getChapterKindLabel(project)}
               </span>
               <span className="text-xs text-slate-400">📍 {project.districtName}</span>
             </div>
@@ -179,14 +245,16 @@ export function ProjectModal() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => openProjectCreator(project.id)}
-              title="Edit / Update Stored Project Information"
-              className="flex cursor-pointer items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/15 hover:text-white"
-            >
-              <Edit3 className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Edit Info</span>
-            </button>
+            {isStudioMode && (
+              <button
+                onClick={() => openProjectCreator(project.id)}
+                title="Edit / Update Stored Project Information"
+                className="flex cursor-pointer items-center gap-1 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/15 hover:text-white"
+              >
+                <Edit3 className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Edit Info</span>
+              </button>
+            )}
             <button
               onClick={closeProjectModal}
               className="cursor-pointer rounded-xl border border-white/15 bg-white/5 p-2 text-slate-300 transition hover:bg-white/15 hover:text-white"
@@ -198,6 +266,17 @@ export function ProjectModal() {
 
         {/* Scrollable Story & Case Study Content */}
         <div className="space-y-6 overflow-y-auto p-6">
+          {/* Interactive Visual Preview (Image/Video if provided, otherwise live animated architectural canvas) */}
+          {sanitizeHttpUrl(project.imageUrl) ? (
+            <img
+              src={sanitizeHttpUrl(project.imageUrl)!}
+              alt={project.title}
+              className="aspect-video w-full rounded-2xl border border-white/12 object-cover"
+            />
+          ) : (
+            <LiveProjectBannerCanvas project={project} />
+          )}
+
           {/* Story Chapter Narrative Banner */}
           {project.storyNarrative && (
             <div className="rounded-2xl border border-pink-400/30 bg-gradient-to-r from-pink-500/15 via-violet-500/10 to-sky-500/15 p-4">
@@ -334,7 +413,7 @@ export function ProjectModal() {
                 className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-slate-950 shadow-lg transition hover:brightness-110"
                 style={{ backgroundColor: project.accentColor }}
               >
-                <span>Launch Link</span>
+                <span>Open Profile / Demo</span>
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}

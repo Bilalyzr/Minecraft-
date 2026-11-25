@@ -72,7 +72,11 @@ export function WardrobeBoutique() {
       WARDROBE_BOUTIQUE_POS[1] + 5.2 - camera.position.y,
       WARDROBE_BOUTIQUE_POS[2] - camera.position.z
     );
-    const visible = toBoutiqueHelper.dot(camDirHelper) > 2.0 && toBoutiqueHelper.length() < 26;
+    const visible =
+      store.hasEnteredWorld &&
+      !isNear &&
+      toBoutiqueHelper.dot(camDirHelper) > 2.0 &&
+      toBoutiqueHelper.length() < 42;
     if (visible !== showPlaque) {
       setShowPlaque(visible);
     }
@@ -118,7 +122,10 @@ export function WardrobeBoutique() {
       }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.cursor = 'auto';
+    };
   }, []);
 
   const leftPreset = CHARACTER_PRESETS[1].appearance;
@@ -184,6 +191,13 @@ export function WardrobeBoutique() {
       {/* Center Illuminated Holographic Dressing Mirror Backdrop */}
       <group
         position={[0, 2.35, -1.35]}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'auto';
+        }}
         onClick={(e) => {
           e.stopPropagation();
           if (e.delta > 5) return;

@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import {
   Award,
   BookOpen,
   Briefcase,
+  Check,
   Code2,
+  Copy,
+  FileDown,
   GraduationCap,
   Mail,
   MapPin,
@@ -21,8 +25,19 @@ export function ResumeStoryModal() {
   const visitedProjectIds = useWorldStore((s) => s.visitedProjectIds);
   const teleportToStoryChapter = useWorldStore((s) => s.teleportToStoryChapter);
   const openProjectModal = useWorldStore((s) => s.openProjectModal);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   if (!isResumeModalOpen) return null;
+
+  const handleCopyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(DEVELOPER_PROFILE.emailAddress);
+      setCopiedEmail(true);
+      window.setTimeout(() => setCopiedEmail(false), 2000);
+    } catch {
+      window.location.href = DEVELOPER_PROFILE.email;
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-xl sm:p-5">
@@ -31,7 +46,7 @@ export function ResumeStoryModal() {
         <div className="h-1.5 w-full bg-gradient-to-r from-pink-500 via-amber-400 to-emerald-400" />
 
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-white/10 px-6 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 px-6 py-4">
           <div>
             <div className="flex items-center gap-1.5 text-xs font-medium text-pink-300">
               <BookOpen className="h-3.5 w-3.5" />
@@ -43,26 +58,43 @@ export function ResumeStoryModal() {
             <p className="text-xs text-slate-300">{DEVELOPER_PROFILE.role}</p>
           </div>
 
-          <button
-            onClick={() => setResumeModalOpen(false)}
-            className="cursor-pointer rounded-xl border border-white/15 bg-white/5 p-2 text-slate-300 transition hover:bg-white/15 hover:text-white"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/Mohammed_Bilal_A_Resume.pdf"
+              download="Mohammed_Bilal_A_Resume.pdf"
+              className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-gradient-to-r from-pink-400 to-amber-300 px-3.5 py-2 text-xs font-bold text-slate-950 shadow transition hover:brightness-110"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              <span>Download PDF</span>
+            </a>
+
+            <button
+              onClick={() => setResumeModalOpen(false)}
+              className="cursor-pointer rounded-xl border border-white/15 bg-white/5 p-2 text-slate-300 transition hover:bg-white/15 hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content */}
         <div className="space-y-6 overflow-y-auto p-6">
           {/* Contact & Summary Card */}
           <div className="rounded-2xl border border-white/12 bg-slate-950/75 p-4">
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
-              <a
-                href={DEVELOPER_PROFILE.email}
-                className="flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1 hover:bg-white/10 hover:text-white"
+            <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-300">
+              <button
+                type="button"
+                onClick={handleCopyEmail}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1 hover:bg-white/10 hover:text-white"
               >
                 <Mail className="h-3.5 w-3.5 text-pink-400" />
                 <span>{DEVELOPER_PROFILE.emailAddress}</span>
-              </a>
+                {copiedEmail ? (
+                  <Check className="h-3 w-3 text-emerald-400" />
+                ) : (
+                  <Copy className="h-3 w-3 text-slate-400" />
+                )}
+              </button>
               <span className="flex items-center gap-1.5 rounded-lg bg-white/5 px-2.5 py-1">
                 <Phone className="h-3.5 w-3.5 text-emerald-400" />
                 <span>{DEVELOPER_PROFILE.phone}</span>
@@ -70,7 +102,7 @@ export function ResumeStoryModal() {
               <a
                 href={DEVELOPER_PROFILE.linkedinUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="rounded-lg bg-sky-500/15 px-2.5 py-1 font-semibold text-sky-300 hover:bg-sky-500/25"
               >
                 LinkedIn: MohammedBilal A
@@ -78,7 +110,7 @@ export function ResumeStoryModal() {
               <a
                 href={DEVELOPER_PROFILE.githubUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="rounded-lg bg-white/10 px-2.5 py-1 font-semibold text-white hover:bg-white/20"
               >
                 GitHub Profile
@@ -94,7 +126,9 @@ export function ResumeStoryModal() {
             <div className="mb-2.5 flex items-center justify-between">
               <h3 className="flex items-center gap-2 font-mono-code text-xs font-bold tracking-wider text-amber-300 uppercase">
                 <Sparkles className="h-4 w-4" />
-                <span>Interactive 3D Story World Chapters ({visitedProjectIds.length}/{projects.length} Visited)</span>
+                <span>
+                  Interactive 3D Story World Chapters ({visitedProjectIds.length}/{projects.length} Visited)
+                </span>
               </h3>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">

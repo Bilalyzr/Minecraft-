@@ -171,12 +171,55 @@ function findFreePavilionSlot(existingProjects: PortfolioProject[]): {
   return CUSTOM_PAVILION_SLOTS[0];
 }
 
+function getRecommendedQualityTier(): QualityTier {
+  if (typeof window === 'undefined') return 'balanced';
+  const isSmallScreen = window.innerWidth < 768;
+  const hasCoarsePointer =
+    typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const cores = typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency ?? 6) : 6;
+
+  if ((isSmallScreen || hasCoarsePointer) && cores <= 4) {
+    return 'performance';
+  }
+  if (isSmallScreen || hasCoarsePointer || cores <= 4) {
+    return 'balanced';
+  }
+  return 'balanced';
+}
+
+function getInitialStudioMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('studio') === '1' || params.get('edit') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function loadHasStoredVisitor(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEYS.VISITOR_NAME);
+    return Boolean(saved && saved.trim().length > 0);
+  } catch {
+    return false;
+  }
+}
+
 interface WorldStoreState {
   isWorldReady: boolean;
+  loadProgress: number;
+  loadStage: string;
   setWorldReady: (ready: boolean) => void;
+  setLoadingProgress: (progress: number, stage: string) => void;
 
   // Visitor Onboarding & Character Customization State
   hasEnteredWorld: boolean;
+  isReturningVisitor: boolean;
+  introSequenceNonce: number;
+  hasSeenControlsHint: boolean;
+  setHasSeenControlsHint: (seen: boolean) => void;
   visitorName: string;
   visitorRole: string;
   characterAppearance: CharacterAppearance;
@@ -186,12 +229,19 @@ interface WorldStoreState {
   setVisitorIdentity: (name: string, role?: string) => void;
   setCharacterAppearance: (updates: Partial<CharacterAppearance>) => void;
   selectCharacterPreset: (presetId: string) => void;
-  completeVisitorOnboarding: (name: string, role: string, appearance: CharacterAppearance) => void;
+  completeVisitorOnboarding: (
+    name: string,
+    role: string,
+    appearance: CharacterAppearance,
+    enableSound?: boolean
+  ) => void;
   setWardrobeOpen: (open: boolean) => void;
   setNearWardrobe: (near: boolean) => void;
 
   // Dynamic & Manually Stored Portfolio Projects
   projects: PortfolioProject[];
+  isStudioMode: boolean;
+  setStudioMode: (enabled: boolean) => void;
   isProjectCreatorOpen: boolean;
   editingProjectId: string | null;
   openProjectCreator: (projectId?: string | null) => void;
@@ -210,10 +260,12 @@ interface WorldStoreState {
   storyChapterIndex: number;
   visitedProjectIds: string[];
   isResumeModalOpen: boolean;
+  isAutoTourActive: boolean;
   setStoryChapterIndex: (index: number) => void;
   markProjectVisited: (id: string) => void;
   teleportToStoryChapter: (index: number) => void;
   setResumeModalOpen: (open: boolean) => void;
+  setAutoTourActive: (active: boolean) => void;
 
   // Atmosphere & Audio
   timeOfDay: TimeOfDay;
@@ -224,6 +276,7 @@ interface WorldStoreState {
   setQualityTier: (tier: QualityTier) => void;
 
   soundEnabled: boolean;
+  setSoundEnabled: (enabled: boolean) => void;
   toggleSound: () => void;
 
   // Player & Vehicle modes
@@ -278,10 +331,25 @@ const INITIAL_PROJECTS = loadInitialProjects();
 
 export const useWorldStore = create<WorldStoreState>((set, get) => ({
   isWorldReady: false,
-  setWorldReady: (ready) => set({ isWorldReady: ready }),
+  loadProgress: 12,
+  loadStage: 'Initializing 3D Engine...',
+  setWorldReady: (ready) =>
+    set({
+      isWorldReady: ready,
+      ...(ready ? { loadProgress: 100, loadStage: 'Story World Ready' } : {}),
+    }),
+  setLoadingProgress: (loadProgress, loadStage) =>
+    set({
+      loadProgress: Math.max(0, Math.min(100, Math.round(loadProgress))),
+      loadStage,
+    }),
 
   // Visitor Onboarding & Character Customization
   hasEnteredWorld: false,
+  isReturningVisitor: loadHasStoredVisitor(),
+  introSequenceNonce: 0,
+  hasSeenControlsHint: false,
+  setHasSeenControlsHint: (hasSeenControlsHint) => set({ hasSeenControlsHint }),
   visitorName: loadInitialString(STORAGE_KEYS.VISITOR_NAME, ''),
   visitorRole: loadInitialString(STORAGE_KEYS.VISITOR_ROLE, 'Tech Recruiter'),
   characterAppearance: loadInitialAppearance(),
@@ -328,10 +396,11 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
     set({ characterAppearance: next });
   },
 
-  completeVisitorOnboarding: (name, role, appearance) => {
+  completeVisitorOnboarding: (name, role, appearance, enableSound) => {
     const cleanName = name.trim().slice(0, 48) || 'Guest Explorer';
     const cleanRole = role.trim().slice(0, 40) || 'Guest Explorer';
     const cleanAppearance = sanitizeAppearance(appearance);
+    const wasEntered = get().hasEnteredWorld;
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEYS.VISITOR_NAME, cleanName);
@@ -341,13 +410,15 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
         // ignore
       }
     }
-    set({
+    set((state) => ({
       visitorName: cleanName,
       visitorRole: cleanRole,
       characterAppearance: cleanAppearance,
       hasEnteredWorld: true,
       isWardrobeOpen: false,
-    });
+      introSequenceNonce: wasEntered ? state.introSequenceNonce : state.introSequenceNonce + 1,
+      ...(typeof enableSound === 'boolean' ? { soundEnabled: enableSound } : {}),
+    }));
   },
 
   setWardrobeOpen: (open) =>
@@ -363,6 +434,8 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
 
   // Dynamic & Manually Stored Portfolio Projects
   projects: INITIAL_PROJECTS,
+  isStudioMode: getInitialStudioMode(),
+  setStudioMode: (isStudioMode) => set({ isStudioMode }),
   isProjectCreatorOpen: false,
   editingProjectId: null,
 
@@ -513,8 +586,10 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   storyChapterIndex: 0,
   visitedProjectIds: loadVisitedChapters(INITIAL_PROJECTS),
   isResumeModalOpen: false,
+  isAutoTourActive: false,
 
   setStoryChapterIndex: (storyChapterIndex) => set({ storyChapterIndex }),
+  setAutoTourActive: (isAutoTourActive) => set({ isAutoTourActive }),
 
   markProjectVisited: (id) => {
     const state = get();
@@ -567,10 +642,11 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
     set({ timeOfDay: TIME_ORDER[(idx + 1) % TIME_ORDER.length] });
   },
 
-  qualityTier: 'ultra',
+  qualityTier: getRecommendedQualityTier(),
   setQualityTier: (qualityTier) => set({ qualityTier }),
 
   soundEnabled: false,
+  setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
   toggleSound: () => set((s) => ({ soundEnabled: !s.soundEnabled })),
 
   drivingVehicleId: null,
@@ -589,7 +665,7 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   vehiclePositions: {
     rover: [10.8, 0.9, 8.8],
     kart: [-10.8, 0.85, 8.8],
-    scooter: [6.8, 0.78, 13.8],
+    scooter: [5.6, 0.78, 8.2],
   },
   updatePlayerTransform: (pos, heading) => {
     const state = get();

@@ -1,23 +1,29 @@
+import { useEffect, useState } from 'react';
 import {
   BookOpen,
   Car,
+  Check,
   ChevronRight,
   Compass,
+  Copy,
   Edit3,
   ExternalLink,
+  FileDown,
   FolderGit2,
   FolderPlus,
   Github,
   HelpCircle,
   LayoutGrid,
   Linkedin,
-  Mail,
   Moon,
+  Pause,
+  Play,
   Shirt,
   Sparkles,
   Sunrise,
   Volume2,
   VolumeX,
+  X,
   Zap,
 } from 'lucide-react';
 import { DEVELOPER_PROFILE } from '../config/profile.config';
@@ -32,8 +38,14 @@ const QUALITY_LABELS: Record<QualityTier, string> = {
 };
 
 export function HUD() {
+  const hasEnteredWorld = useWorldStore((s) => s.hasEnteredWorld);
+  const hasSeenControlsHint = useWorldStore((s) => s.hasSeenControlsHint);
+  const setHasSeenControlsHint = useWorldStore((s) => s.setHasSeenControlsHint);
+
   const projects = useWorldStore((s) => s.projects);
+  const isStudioMode = useWorldStore((s) => s.isStudioMode);
   const visitorName = useWorldStore((s) => s.visitorName);
+  const visitorRole = useWorldStore((s) => s.visitorRole);
   const characterAppearance = useWorldStore((s) => s.characterAppearance);
 
   const timeOfDay = useWorldStore((s) => s.timeOfDay);
@@ -49,7 +61,13 @@ export function HUD() {
   const isBoosting = useWorldStore((s) => s.isBoosting);
 
   const nearbyProjectId = useWorldStore((s) => s.nearbyProjectId);
+  const activeModalProjectId = useWorldStore((s) => s.activeModalProjectId);
+  const isWardrobeOpen = useWorldStore((s) => s.isWardrobeOpen);
+  const isDirectoryOpen = useWorldStore((s) => s.isDirectoryOpen);
+  const isProjectCreatorOpen = useWorldStore((s) => s.isProjectCreatorOpen);
+  const isResumeModalOpen = useWorldStore((s) => s.isResumeModalOpen);
   const isNearWardrobe = useWorldStore((s) => s.isNearWardrobe);
+
   const openProjectModal = useWorldStore((s) => s.openProjectModal);
   const setDirectoryOpen = useWorldStore((s) => s.setDirectoryOpen);
   const setWardrobeOpen = useWorldStore((s) => s.setWardrobeOpen);
@@ -59,10 +77,45 @@ export function HUD() {
   const visitedProjectIds = useWorldStore((s) => s.visitedProjectIds);
   const teleportToStoryChapter = useWorldStore((s) => s.teleportToStoryChapter);
 
+  const isAutoTourActive = useWorldStore((s) => s.isAutoTourActive);
+  const setAutoTourActive = useWorldStore((s) => s.setAutoTourActive);
+
   const isControlsHelpOpen = useWorldStore((s) => s.isControlsHelpOpen);
   const setControlsHelpOpen = useWorldStore((s) => s.setControlsHelpOpen);
   const requestSummonVehicle = useWorldStore((s) => s.requestSummonVehicle);
   const triggerInteract = useWorldStore((s) => s.triggerInteract);
+
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  // Auto-dismiss transient first-entry controls hint after 6.5s
+  useEffect(() => {
+    if (!hasEnteredWorld || hasSeenControlsHint) return;
+    const timer = window.setTimeout(() => {
+      setHasSeenControlsHint(true);
+    }, 6800);
+    return () => window.clearTimeout(timer);
+  }, [hasEnteredWorld, hasSeenControlsHint, setHasSeenControlsHint]);
+
+  // Guided Auto-Tour cadence (advances between chapters while no modal/drive is blocking)
+  const anyModalBlocking =
+    Boolean(activeModalProjectId) ||
+    isWardrobeOpen ||
+    isDirectoryOpen ||
+    isProjectCreatorOpen ||
+    isResumeModalOpen;
+
+  useEffect(() => {
+    if (!isAutoTourActive || !hasEnteredWorld || anyModalBlocking || drivingVehicleId) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      const state = useWorldStore.getState();
+      state.teleportToStoryChapter(state.storyChapterIndex + 1);
+    }, 6500);
+    return () => window.clearInterval(timer);
+  }, [isAutoTourActive, hasEnteredWorld, anyModalBlocking, drivingVehicleId]);
+
+  if (!hasEnteredWorld) return null;
 
   const activeProject = projects.find((p) => p.id === nearbyProjectId);
   const currentStoryProject = projects[storyChapterIndex % Math.max(1, projects.length)];
@@ -74,13 +127,23 @@ export function HUD() {
     setQualityTier(order[(order.indexOf(qualityTier) + 1) % order.length]);
   };
 
+  const handleCopyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(DEVELOPER_PROFILE.emailAddress);
+      setEmailCopied(true);
+      window.setTimeout(() => setEmailCopied(false), 2000);
+    } catch {
+      window.location.href = DEVELOPER_PROFILE.email;
+    }
+  };
+
   return (
     <div className="pointer-events-none fixed inset-0 z-20 flex flex-col justify-between p-3.5 sm:p-5">
-      {/* Top Bar: Minimal Identity + Compact Story Stepper + Spatial Controls */}
+      {/* Top Bar: Identity + Recruiter Actions + Compact Controls */}
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
-          {/* Minimal Identity & Resume Pill */}
-          <div className="glass-panel pointer-events-auto flex items-center gap-2.5 rounded-2xl px-3 py-1.5">
+          {/* Identity, Resume Codex & One-Click Recruiter Tools */}
+          <div className="glass-panel pointer-events-auto flex items-center gap-2 rounded-2xl px-3 py-1.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-pink-400 to-amber-300 font-display text-sm font-bold text-slate-950">
               {DEVELOPER_PROFILE.name.charAt(0)}
             </div>
@@ -94,6 +157,16 @@ export function HUD() {
               <BookOpen className="h-3 w-3" />
               <span>Resume</span>
             </button>
+
+            <a
+              href="/Mohammed_Bilal_A_Resume.pdf"
+              download="Mohammed_Bilal_A_Resume.pdf"
+              title="Download Resume PDF"
+              className="hidden items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-medium text-pink-200 transition hover:bg-white/15 hover:text-white sm:inline-flex"
+            >
+              <FileDown className="h-3 w-3" />
+              <span>PDF</span>
+            </a>
 
             <div className="hidden items-center gap-0.5 border-l border-white/10 pl-1.5 sm:flex">
               <a
@@ -114,13 +187,18 @@ export function HUD() {
               >
                 <Linkedin className="h-3.5 w-3.5" />
               </a>
-              <a
-                href={DEVELOPER_PROFILE.email}
-                title={DEVELOPER_PROFILE.emailAddress}
-                className="rounded-lg p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+              <button
+                type="button"
+                onClick={handleCopyEmail}
+                title={`Copy Email: ${DEVELOPER_PROFILE.emailAddress}`}
+                className="cursor-pointer rounded-lg p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
               >
-                <Mail className="h-3.5 w-3.5" />
-              </a>
+                {emailCopied ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
             </div>
           </div>
 
@@ -128,7 +206,7 @@ export function HUD() {
           <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setWardrobeOpen(true)}
-              title="Customize Avatar & Outfit (C)"
+              title={`Customize Avatar (${visitorRole}) [C]`}
               className="glass-pill flex cursor-pointer items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/10"
             >
               <span
@@ -136,17 +214,19 @@ export function HUD() {
                 style={{ backgroundColor: characterAppearance.jacketColor }}
               />
               <Shirt className="h-3.5 w-3.5 text-pink-300" />
-              <span className="max-w-[96px] truncate">{visitorName || 'Style'}</span>
+              <span className="max-w-[90px] truncate">{visitorName || 'Style'}</span>
             </button>
 
-            <button
-              onClick={() => openProjectCreator(null)}
-              title="Add New Project Pavilion"
-              className="glass-pill flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:border-white/25 hover:text-white"
-            >
-              <FolderPlus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Add Project</span>
-            </button>
+            {isStudioMode && (
+              <button
+                onClick={() => openProjectCreator(null)}
+                title="Add New Project Pavilion (Studio Mode)"
+                className="glass-pill flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:border-white/25 hover:text-white"
+              >
+                <FolderPlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Add Project</span>
+              </button>
+            )}
 
             <button
               onClick={() => setDirectoryOpen(true)}
@@ -177,10 +257,11 @@ export function HUD() {
 
             <button
               onClick={nextQuality}
-              title={`Graphics: ${QUALITY_LABELS[qualityTier]}`}
-              className="glass-pill hidden cursor-pointer items-center justify-center rounded-xl p-2 text-emerald-300 transition hover:border-white/25 hover:text-white sm:flex"
+              title={`Graphics: ${QUALITY_LABELS[qualityTier]} (Click to cycle)`}
+              className="glass-pill hidden cursor-pointer items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-medium text-emerald-300 transition hover:border-white/25 hover:text-white sm:flex"
             >
               <Sparkles className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">{QUALITY_LABELS[qualityTier].split(' ')[0]}</span>
             </button>
 
             <button
@@ -205,35 +286,87 @@ export function HUD() {
           </div>
         </div>
 
-        {/* Sleek Minimal Story Stepper Pill */}
+        {/* Sleek Minimal Story Stepper & Guided Auto-Tour Pill */}
         {currentStoryProject && (
-          <div className="glass-pill pointer-events-auto flex items-center gap-2.5 self-start rounded-xl px-3 py-1 text-xs">
+          <div className="glass-pill pointer-events-auto flex flex-wrap items-center gap-2 self-start rounded-xl px-3 py-1 text-xs">
             <span className="font-mono-code text-[11px] font-semibold text-amber-300">
               {String(visitedProjectIds.length).padStart(2, '0')}/
               {String(projects.length).padStart(2, '0')}
             </span>
-            <span className="max-w-[200px] truncate font-medium text-white/90 sm:max-w-xs">
+            <span className="max-w-[165px] truncate font-medium text-white/90 sm:max-w-xs">
               {currentStoryProject.title}
             </span>
             <div className="flex items-center gap-1 border-l border-white/10 pl-2">
               <button
-                onClick={() => teleportToStoryChapter(storyChapterIndex)}
+                onClick={() => {
+                  setAutoTourActive(false);
+                  teleportToStoryChapter(storyChapterIndex);
+                }}
                 className="cursor-pointer rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-200 transition hover:bg-white/20 hover:text-white"
               >
                 Visit
               </button>
               <button
-                onClick={() => teleportToStoryChapter(storyChapterIndex + 1)}
+                onClick={() => {
+                  setAutoTourActive(false);
+                  teleportToStoryChapter(storyChapterIndex + 1);
+                }}
                 title="Next Chapter (N)"
                 className="flex cursor-pointer items-center gap-0.5 rounded-md bg-pink-500/25 px-2 py-0.5 text-[11px] font-medium text-pink-200 transition hover:bg-pink-500/40"
               >
                 <span>Next</span>
                 <ChevronRight className="h-3 w-3" />
               </button>
+              <button
+                onClick={() => {
+                  const next = !isAutoTourActive;
+                  setAutoTourActive(next);
+                  if (next) {
+                    teleportToStoryChapter(storyChapterIndex);
+                  }
+                }}
+                title={isAutoTourActive ? 'Pause Guided Tour' : 'Start Hands-Free Guided Tour'}
+                className={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
+                  isAutoTourActive
+                    ? 'bg-emerald-500/30 text-emerald-200 ring-1 ring-emerald-400/50'
+                    : 'bg-white/8 text-slate-300 hover:bg-white/15 hover:text-white'
+                }`}
+              >
+                {isAutoTourActive ? (
+                  <>
+                    <Pause className="h-2.5 w-2.5" />
+                    <span>Tour</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-2.5 w-2.5" />
+                    <span className="hidden sm:inline">Tour</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Transient Auto-Fading Onboarding Tip on First Entry */}
+      {!hasSeenControlsHint && !isControlsHelpOpen && (
+        <div className="glass-pill pointer-events-auto mx-auto flex items-center gap-2.5 rounded-full px-4 py-1.5 text-[11px] text-slate-200 shadow-lg">
+          <span>
+            <strong className="text-pink-300">Drag</strong> to orbit ·{' '}
+            <strong className="text-sky-300">Scroll/Pinch</strong> to zoom ·{' '}
+            <strong className="text-emerald-300">WASD</strong> to move ·{' '}
+            <strong className="text-amber-300">N</strong> for next chapter
+          </span>
+          <button
+            type="button"
+            onClick={() => setHasSeenControlsHint(true)}
+            className="cursor-pointer rounded-full p-0.5 text-slate-400 hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
 
       {/* Expandable Controls Cheat-Sheet Card */}
       {isControlsHelpOpen && (
@@ -253,7 +386,7 @@ export function HUD() {
               Drive
             </div>
             <div>
-              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">Drag</kbd> Orbit
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">Drag / Pinch</kbd>{' '}
               Camera
             </div>
             <div>
@@ -375,13 +508,15 @@ export function HUD() {
                   <Compass className="h-3.5 w-3.5" />
                   <span>Explore</span>
                 </button>
-                <button
-                  onClick={() => openProjectCreator(activeProject.id)}
-                  className="flex cursor-pointer items-center justify-center rounded-xl border border-white/12 bg-white/8 p-2 text-white transition hover:bg-white/15"
-                  title="Edit"
-                >
-                  <Edit3 className="h-3.5 w-3.5" />
-                </button>
+                {isStudioMode && (
+                  <button
+                    onClick={() => openProjectCreator(activeProject.id)}
+                    className="flex cursor-pointer items-center justify-center rounded-xl border border-white/12 bg-white/8 p-2 text-white transition hover:bg-white/15"
+                    title="Edit"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {sanitizeHttpUrl(activeProject.liveUrl) && (
                   <a
                     href={sanitizeHttpUrl(activeProject.liveUrl)!}

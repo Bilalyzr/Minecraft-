@@ -3,6 +3,7 @@ import { Car, Zap } from 'lucide-react';
 import { useWorldStore } from '../store/useWorldStore';
 
 export function MobileControls() {
+  const hasEnteredWorld = useWorldStore((s) => s.hasEnteredWorld);
   const setMobileMove = useWorldStore((s) => s.setMobileMove);
   const setMobileButton = useWorldStore((s) => s.setMobileButton);
   const triggerInteract = useWorldStore((s) => s.triggerInteract);
@@ -12,6 +13,8 @@ export function MobileControls() {
   const padRef = useRef<HTMLDivElement>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const activeTouchRef = useRef(false);
+
+  if (!hasEnteredWorld) return null;
 
   const updateStick = (clientX: number, clientY: number) => {
     if (!padRef.current) return;

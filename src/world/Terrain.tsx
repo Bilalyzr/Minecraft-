@@ -346,6 +346,59 @@ export function Terrain() {
             />
           </mesh>
         </RigidBody>
+
+        {/* Plaza Wayfinder Lantern Posts & Color-Coded District Rune Strips */}
+        <RigidBody type="fixed" colliders={false}>
+          <CuboidCollider args={[0.35, 1.5, 0.35]} position={[-4.8, 1.5, 6.2]} />
+          <group position={[-4.8, 0, 6.2]}>
+            <mesh position={[0, 1.4, 0]} castShadow>
+              <boxGeometry args={[0.28, 2.8, 0.28]} />
+              <meshStandardMaterial {...oakMaps} />
+            </mesh>
+            {/* 4 Directional Oak Pointers with District Glow Gems */}
+            <mesh position={[0, 2.45, -0.36]} castShadow>
+              <boxGeometry args={[0.22, 0.24, 0.95]} />
+              <meshStandardMaterial {...cherryPlankMaps} />
+            </mesh>
+            <mesh position={[0, 2.45, -0.84]}>
+              <boxGeometry args={[0.18, 0.18, 0.14]} />
+              <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={2.6} />
+            </mesh>
+            <mesh position={[-0.36, 2.05, 0]} castShadow>
+              <boxGeometry args={[0.95, 0.24, 0.22]} />
+              <meshStandardMaterial {...cherryPlankMaps} />
+            </mesh>
+            <mesh position={[-0.84, 2.05, 0]}>
+              <boxGeometry args={[0.14, 0.18, 0.18]} />
+              <meshStandardMaterial color="#ec4899" emissive="#ec4899" emissiveIntensity={2.6} />
+            </mesh>
+            <mesh position={[0.36, 1.65, 0]} castShadow>
+              <boxGeometry args={[0.95, 0.24, 0.22]} />
+              <meshStandardMaterial {...cherryPlankMaps} />
+            </mesh>
+            <mesh position={[0.84, 1.65, 0]}>
+              <boxGeometry args={[0.14, 0.18, 0.18]} />
+              <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={2.6} />
+            </mesh>
+          </group>
+        </RigidBody>
+
+        {/* Subtle Glowing Plaza Path Rune Inlays Pointing Toward N / W / E / S Districts */}
+        {[
+          { pos: [0, 0.095, -8.8] as [number, number, number], size: [0.42, 0.02, 2.4] as [number, number, number], col: '#38bdf8' },
+          { pos: [-11.8, 0.095, 2] as [number, number, number], size: [2.4, 0.02, 0.42] as [number, number, number], col: '#ec4899' },
+          { pos: [11.8, 0.095, 2] as [number, number, number], size: [2.4, 0.02, 0.42] as [number, number, number], col: '#f59e0b' },
+          { pos: [0, 0.095, 13.0] as [number, number, number], size: [0.42, 0.02, 2.4] as [number, number, number], col: '#10b981' },
+        ].map((rune, rIdx) => (
+          <mesh key={rIdx} position={rune.pos}>
+            <boxGeometry args={rune.size} />
+            <meshStandardMaterial
+              color={rune.col}
+              emissive={rune.col}
+              emissiveIntensity={timeOfDay === 'night' ? 2.4 : 1.35}
+            />
+          </mesh>
+        ))}
       </group>
 
       {/* Solid Raised Cobblestone Boulevards (y = 0.035 center, top = 0.085m — Square Paver UVs!) */}

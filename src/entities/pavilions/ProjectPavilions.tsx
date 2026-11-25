@@ -19,7 +19,8 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
   const openProjectModal = useWorldStore((s) => s.openProjectModal);
 
   const isActive = nearbyProjectId === project.id;
-  const [showHeaderLabel, setShowHeaderLabel] = useState(true);
+  const [labelMode, setLabelMode] = useState<'none' | 'badge' | 'full'>('none');
+  const [isScreenHovered, setIsScreenHovered] = useState(false);
   const camDirHelper = useMemo(() => new THREE.Vector3(), []);
   const toObjHelper = useMemo(() => new THREE.Vector3(), []);
 
@@ -37,7 +38,10 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
   const screenHandle = useMemo(() => createProjectScreenHandle(project), [project]);
   useEffect(() => {
     screenHandle.texture.needsUpdate = true;
-    return () => screenHandle.dispose();
+    return () => {
+      screenHandle.dispose();
+      document.body.style.cursor = 'auto';
+    };
   }, [screenHandle]);
 
   const techCubesRef = useRef<THREE.Group>(null);
@@ -47,18 +51,27 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
 
   useFrame(({ clock, camera }) => {
     const t = clock.getElapsedTime();
-    const [px, , pz] = useWorldStore.getState().playerPosition;
+    const store = useWorldStore.getState();
+    const [px, , pz] = store.playerPosition;
     const distToPavilion = Math.hypot(px - project.position[0], pz - project.position[2]);
 
     camera.getWorldDirection(camDirHelper);
     toObjHelper.set(
       project.position[0] - camera.position.x,
-      project.position[1] + 6 - camera.position.y,
+      project.position[1] + 5.8 - camera.position.y,
       project.position[2] - camera.position.z
     );
-    const inFront = toObjHelper.dot(camDirHelper) > 2.5 && toObjHelper.length() < 30;
-    if (inFront !== showHeaderLabel) {
-      setShowHeaderLabel(inFront);
+    const camDist = toObjHelper.length();
+    const inFront = toObjHelper.dot(camDirHelper) > 2.2;
+    const nextMode: 'none' | 'badge' | 'full' =
+      !store.hasEnteredWorld || !inFront || isActive || camDist > 64
+        ? 'none'
+        : camDist <= 26
+          ? 'full'
+          : 'badge';
+
+    if (nextMode !== labelMode) {
+      setLabelMode(nextMode);
     }
 
     // Animate canvas texture when player is within 75m
@@ -325,12 +338,21 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
           <meshStandardMaterial
             color={project.accentColor}
             emissive={project.accentColor}
-            emissiveIntensity={isActive ? 2.6 : 1.15}
+            emissiveIntensity={isActive ? 2.6 : isScreenHovered ? 2.1 : 1.15}
           />
         </mesh>
         {/* Live Animated 640x360 Project Canvas Texture */}
         <mesh
           position={[0, 0, 0.21]}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            setIsScreenHovered(true);
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => {
+            setIsScreenHovered(false);
+            document.body.style.cursor = 'auto';
+          }}
           onClick={(e) => {
             e.stopPropagation();
             if (e.delta > 5) return;
@@ -369,13 +391,13 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
         </group>
       ))}
 
-      {/* Minimal Floating 3D Pavilion Pill (Shown within 30m in front of camera) */}
-      {showHeaderLabel && (
-        <Html position={[0, 8.2, 1.2]} center zIndexRange={[8, 0]}>
+      {/* Distance-Tiered 3D Pavilion Wayfinder Pill */}
+      {labelMode !== 'none' && (
+        <Html position={[0, 6.0, 1.4]} center zIndexRange={[8, 0]}>
           <button
             type="button"
             onClick={() => openProjectModal(project.id)}
-            className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/65 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105"
+            className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/70 px-2.5 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105"
           >
             <span
               className="font-mono-code text-[10px] font-bold"
@@ -383,7 +405,9 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
             >
               {project.number}
             </span>
-            <span className="font-display font-semibold">{project.title}</span>
+            {labelMode === 'full' && (
+              <span className="font-display font-semibold">{project.title}</span>
+            )}
           </button>
         </Html>
       )}

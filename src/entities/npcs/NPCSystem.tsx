@@ -10,6 +10,11 @@ import {
   RIVER_Z_MIN,
   WORLD_BRIDGES,
 } from '../../config/world.config';
+import type {
+  BackAccessoryType,
+  HairStyleType,
+  OutfitStyleType,
+} from '../../config/character.config';
 import { useWorldStore } from '../../store/useWorldStore';
 
 interface UnifiedNPCActor {
@@ -21,11 +26,39 @@ interface UnifiedNPCActor {
   pantsColor: string;
   hairColor: string;
   skinColor: string;
+  hairStyle: HairStyleType;
+  outfitStyle: OutfitStyleType;
+  accessory: BackAccessoryType;
   speed: number;
   dialogue: string;
   waypoints: [number, number][];
   linkedProjectId?: string;
 }
+
+const GUIDE_STYLE_MAP: Record<
+  string,
+  { hairStyle: HairStyleType; outfitStyle: OutfitStyleType; accessory: BackAccessoryType }
+> = {
+  thozhirporul: { hairStyle: 'headphones', outfitStyle: 'blazer', accessory: 'backpack' },
+  'ai-firewall': { hairStyle: 'visor', outfitStyle: 'cyber_vest', accessory: 'jetpack' },
+  'fraud-detection': { hairStyle: 'ponytail', outfitStyle: 'blazer', accessory: 'none' },
+  'sasha-infinity': { hairStyle: 'spiky', outfitStyle: 'hoodie', accessory: 'backpack' },
+  'sona-academics': { hairStyle: 'classic', outfitStyle: 'blazer', accessory: 'none' },
+  'achievements-hall': { hairStyle: 'crown', outfitStyle: 'tunic', accessory: 'cape' },
+};
+
+const STROLLER_STYLES: {
+  hairStyle: HairStyleType;
+  outfitStyle: OutfitStyleType;
+  accessory: BackAccessoryType;
+}[] = [
+  { hairStyle: 'ponytail', outfitStyle: 'tunic', accessory: 'cape' },
+  { hairStyle: 'classic', outfitStyle: 'blazer', accessory: 'none' },
+  { hairStyle: 'straw_hat', outfitStyle: 'tunic', accessory: 'backpack' },
+  { hairStyle: 'headphones', outfitStyle: 'cyber_vest', accessory: 'none' },
+  { hairStyle: 'ponytail', outfitStyle: 'blazer', accessory: 'none' },
+  { hairStyle: 'spiky', outfitStyle: 'hoodie', accessory: 'backpack' },
+];
 
 // Compute accurate ground elevation across arched bridges, raised stone boulevards, and courtyard slabs
 function sampleWorldHeight(x: number, z: number): number {
@@ -80,24 +113,30 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
   const toNpcHelper = useMemo(() => new THREE.Vector3(), []);
   const openProjectModal = useWorldStore((s) => s.openProjectModal);
   const visitorName = useWorldStore((s) => s.visitorName);
+  const visitorRole = useWorldStore((s) => s.visitorRole);
+  const hasEnteredWorld = useWorldStore((s) => s.hasEnteredWorld);
 
   useFrame(({ camera }, delta) => {
     const store = useWorldStore.getState();
     const [px, , pz] = store.playerPosition;
     const cur = posRef.current;
 
-    camera.getWorldDirection(camDirHelper);
-    toNpcHelper.set(
-      cur.x - camera.position.x,
-      cur.y + 1.8 - camera.position.y,
-      cur.z - camera.position.z
-    );
-    const shouldShowTag = toNpcHelper.dot(camDirHelper) > 1.8 && toNpcHelper.length() < 11;
-    if (shouldShowTag !== labelInView) {
-      setLabelInView(shouldShowTag);
+    if (!store.hasEnteredWorld) {
+      if (labelInView) setLabelInView(false);
+    } else {
+      camera.getWorldDirection(camDirHelper);
+      toNpcHelper.set(
+        cur.x - camera.position.x,
+        cur.y + 1.8 - camera.position.y,
+        cur.z - camera.position.z
+      );
+      const shouldShowTag = toNpcHelper.dot(camDirHelper) > 1.8 && toNpcHelper.length() < 12;
+      if (shouldShowTag !== labelInView) {
+        setLabelInView(shouldShowTag);
+      }
     }
 
-    // Dynamic obstacle list: all 3 vehicles + Central Fountain + Style Atelier
+    // Dynamic obstacle list: all 3 vehicles + Fountain + Style Atelier + on-foot Player
     const [rx, , rz] = store.vehiclePositions.rover;
     const [kx, , kz] = store.vehiclePositions.kart;
     const [sx, , sz] = store.vehiclePositions.scooter;
@@ -108,6 +147,9 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
       [0, -2, 4.65],
       [-19.5, 1.5, 4.85],
     ];
+    if (store.hasEnteredWorld && !store.drivingVehicleId) {
+      obstacles.push([px, pz, 1.25]);
+    }
 
     const distToPlayer = Math.hypot(px - cur.x, pz - cur.z);
 
@@ -131,7 +173,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       headingRef.current += diff * Math.min(1, delta * 9);
-    } else if (distToPlayer < 5.6 && !store.drivingVehicleId) {
+    } else if (store.hasEnteredWorld && distToPlayer < 5.6 && !store.drivingVehicleId) {
       if (interactionMode !== 'greet') setInteractionMode('greet');
       speedRef.current = 0;
       const dx = px - cur.x;
@@ -162,7 +204,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
           let steerX = dx / dist;
           let steerZ = dz / dist;
 
-          // Smooth tangential obstacle avoidance around parked vehicles & fountain
+          // Smooth tangential obstacle avoidance around parked vehicles, fountain & player
           for (const [ox, oz, rad] of obstacles) {
             const odx = cur.x - ox;
             const odz = cur.z - oz;
@@ -172,7 +214,6 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
               const weight = (avoidRadius - od) / avoidRadius;
               const nx = odx / od;
               const nz = odz / od;
-              // Choose tangent direction aligned with waypoint direction
               const t1x = -nz;
               const t1z = nx;
               const dot = t1x * steerX + t1z * steerZ >= 0 ? 1 : -1;
@@ -199,7 +240,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
       }
     }
 
-    // Hard non-penetration projection so NPCs never clip inside parked or driven vehicles
+    // Hard non-penetration projection
     for (const [ox, oz, rad] of obstacles) {
       const odx = cur.x - ox;
       const odz = cur.z - oz;
@@ -219,6 +260,13 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
     }
   });
 
+  const displayDialogue =
+    interactionMode === 'vehicle_yield'
+      ? `Nice ride${visitorName ? `, ${visitorName}` : ''}! Step out near any pad to explore.`
+      : actor.id === 'visitor-1' && visitorRole && visitorRole !== 'Guest Explorer'
+        ? `Welcome${visitorName ? `, ${visitorName}` : ''}! As a ${visitorRole}, check Resume in top-left or press N for the tour!`
+        : actor.dialogue;
+
   return (
     <group ref={groupRef} position={[actor.waypoints[0][0], 0, actor.waypoints[0][1]]}>
       <VoxelCharacterModel
@@ -226,19 +274,24 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
         jacketColor={actor.jacketColor}
         pantsColor={actor.pantsColor}
         hairColor={actor.hairColor}
+        hairStyle={actor.hairStyle}
+        outfitStyle={actor.outfitStyle}
+        accessory={actor.accessory}
+        capeColor={actor.accentColor}
         speedRef={speedRef}
         isWaving={interactionMode !== 'none'}
       />
 
       {/* Subtle Name Tag or Compact Speech Bubble Within Close Range */}
-      {labelInView &&
+      {hasEnteredWorld &&
+        labelInView &&
         (interactionMode !== 'none' ? (
           <Html position={[0, 2.28, 0]} center zIndexRange={[10, 0]}>
             <div
               onClick={() => {
                 if (actor.linkedProjectId) openProjectModal(actor.linkedProjectId);
               }}
-              className={`w-48 rounded-2xl border border-white/15 bg-slate-950/75 px-3 py-2 text-left shadow-xl backdrop-blur-xl transition-all ${
+              className={`w-52 rounded-2xl border border-white/15 bg-slate-950/75 px-3 py-2 text-left shadow-xl backdrop-blur-xl transition-all ${
                 actor.linkedProjectId
                   ? 'cursor-pointer hover:border-white/35'
                   : 'pointer-events-none'
@@ -254,9 +307,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
                 </span>
               </div>
               <p className="line-clamp-3 text-[11px] leading-snug text-slate-200/90">
-                {interactionMode === 'vehicle_yield'
-                  ? `Nice ride${visitorName ? `, ${visitorName}` : ''}! Watch the corners.`
-                  : actor.dialogue}
+                {displayDialogue}
               </p>
             </div>
           </Html>
@@ -277,7 +328,7 @@ export function NPCSystem() {
   const allActors = useMemo<UnifiedNPCActor[]>(() => {
     const skins = ['#f3cfb3', '#e0ac69', '#c68642', '#ffdbac', '#f1c27d', '#d2996c'];
 
-    // 1. Dedicated Project Specialist Characters Walking Near Each Project Pavilion!
+    // 1. Dedicated Project Specialist Characters Walking Near Each Project Pavilion
     const projectGuides: UnifiedNPCActor[] = projects.map((proj, idx) => {
       const sin = Math.sin(proj.rotationY);
       const cos = Math.cos(proj.rotationY);
@@ -285,6 +336,11 @@ export function NPCSystem() {
         proj.position[0] + lx * cos + lz * sin,
         proj.position[2] - lx * sin + lz * cos,
       ];
+      const presetStyle = GUIDE_STYLE_MAP[proj.id] ?? {
+        hairStyle: 'classic' as HairStyleType,
+        outfitStyle: 'hoodie' as OutfitStyleType,
+        accessory: 'none' as BackAccessoryType,
+      };
 
       return {
         id: `guide-${proj.id}`,
@@ -295,32 +351,41 @@ export function NPCSystem() {
         pantsColor: proj.npcGuide.pantsColor,
         hairColor: proj.npcGuide.hairColor,
         skinColor: skins[idx % skins.length],
+        hairStyle: presetStyle.hairStyle,
+        outfitStyle: presetStyle.outfitStyle,
+        accessory: presetStyle.accessory,
         speed: 2.05,
         dialogue: proj.npcGuide.dialogue,
         linkedProjectId: proj.id,
         waypoints: [
-          toWorld(-3.4, 5.2),
-          toWorld(3.4, 5.2),
-          toWorld(4.8, 9.6),
-          toWorld(-4.8, 9.6),
+          toWorld(-4.6, 5.4),
+          toWorld(4.6, 5.4),
+          toWorld(5.4, 9.8),
+          toWorld(-5.4, 9.8),
         ],
       };
     });
 
     // 2. Ambient Valley Strolling Characters Walking Across Roads, Plaza & Bridges
-    const strollers: UnifiedNPCActor[] = AMBIENT_STROLL_NPCS.map((npc) => ({
-      id: npc.id,
-      name: npc.name,
-      role: npc.role,
-      accentColor: '#f472b6',
-      jacketColor: npc.jacketColor,
-      pantsColor: npc.pantsColor,
-      hairColor: npc.hairColor,
-      skinColor: npc.skinColor,
-      speed: npc.speed,
-      dialogue: npc.dialogue,
-      waypoints: npc.waypoints,
-    }));
+    const strollers: UnifiedNPCActor[] = AMBIENT_STROLL_NPCS.map((npc, idx) => {
+      const st = STROLLER_STYLES[idx % STROLLER_STYLES.length];
+      return {
+        id: npc.id,
+        name: npc.name,
+        role: npc.role,
+        accentColor: '#f472b6',
+        jacketColor: npc.jacketColor,
+        pantsColor: npc.pantsColor,
+        hairColor: npc.hairColor,
+        skinColor: npc.skinColor,
+        hairStyle: st.hairStyle,
+        outfitStyle: st.outfitStyle,
+        accessory: st.accessory,
+        speed: npc.speed,
+        dialogue: npc.dialogue,
+        waypoints: npc.waypoints,
+      };
+    });
 
     return [...projectGuides, ...strollers];
   }, [projects]);

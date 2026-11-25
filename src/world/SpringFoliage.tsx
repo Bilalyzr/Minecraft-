@@ -679,7 +679,6 @@ export function SpringFoliage() {
         ref={flowerHeadRef}
         args={[voxelGeo, undefined, flowerCount]}
         frustumCulled={false}
-        castShadow
       >
         <meshStandardMaterial roughness={0.4} />
       </instancedMesh>
