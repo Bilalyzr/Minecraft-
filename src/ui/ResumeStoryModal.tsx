@@ -33,14 +33,14 @@ export function ResumeStoryModal() {
         {/* Header */}
         <div className="flex items-start justify-between border-b border-white/10 px-6 py-4">
           <div>
-            <div className="flex items-center gap-2 font-mono-code text-xs font-bold text-pink-400">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-pink-300">
               <BookOpen className="h-3.5 w-3.5" />
-              <span>OFFICIAL RESUME & STORYTELLING WORLD CODEX</span>
+              <span>Resume & Story Codex</span>
             </div>
-            <h2 className="mt-1 font-display text-2xl font-bold text-white">
+            <h2 className="mt-0.5 font-display text-2xl font-bold text-white">
               {DEVELOPER_PROFILE.name}
             </h2>
-            <p className="text-xs font-medium text-slate-300">{DEVELOPER_PROFILE.role}</p>
+            <p className="text-xs text-slate-300">{DEVELOPER_PROFILE.role}</p>
           </div>
 
           <button

@@ -10,8 +10,7 @@ export function PostProcessing() {
 
   useEffect(() => {
     gl.toneMapping = THREE.ACESFilmicToneMapping;
-    gl.toneMappingExposure =
-      timeOfDay === 'night' ? 1.18 : timeOfDay === 'sunset' ? 1.08 : 1.12;
+    gl.toneMappingExposure = timeOfDay === 'night' ? 1.22 : 1.1;
   }, [gl, timeOfDay]);
 
   return null;

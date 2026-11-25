@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -7,6 +7,22 @@ import type {
   HairStyleType,
   OutfitStyleType,
 } from '../../config/character.config';
+
+const SHARED_CHAR_GEOS = {
+  head: new RoundedBoxGeometry(0.46, 0.46, 0.46, 2, 0.045),
+  hairTop: new RoundedBoxGeometry(0.5, 0.16, 0.5, 2, 0.035),
+  hairBack: new RoundedBoxGeometry(0.5, 0.34, 0.14, 2, 0.03),
+  torso: new RoundedBoxGeometry(0.46, 0.64, 0.25, 2, 0.035),
+  jacket: new RoundedBoxGeometry(0.52, 0.6, 0.29, 2, 0.04),
+  hoodCollar: new RoundedBoxGeometry(0.44, 0.12, 0.32, 2, 0.03),
+  arm: new RoundedBoxGeometry(0.19, 0.58, 0.19, 2, 0.03),
+  sleeve: new RoundedBoxGeometry(0.225, 0.38, 0.225, 2, 0.03),
+  thigh: new RoundedBoxGeometry(0.205, 0.34, 0.205, 2, 0.03),
+  shin: new RoundedBoxGeometry(0.195, 0.32, 0.195, 2, 0.025),
+  shoe: new RoundedBoxGeometry(0.215, 0.14, 0.27, 2, 0.03),
+  cape: new RoundedBoxGeometry(0.42, 0.66, 0.045, 2, 0.015),
+  backpack: new RoundedBoxGeometry(0.36, 0.44, 0.18, 2, 0.04),
+};
 
 export interface VoxelCharacterProps {
   skinColor?: string;
@@ -28,6 +44,7 @@ export interface VoxelCharacterProps {
   isSeated?: boolean;
   seatPosture?: 'car' | 'scooter';
   steerAngle?: number;
+  steerAngleRef?: { current: number };
   headYawOffset?: number;
 }
 
@@ -51,6 +68,7 @@ export function VoxelCharacterModel({
   isSeated = false,
   seatPosture = 'car',
   steerAngle = 0,
+  steerAngleRef,
   headYawOffset = 0,
 }: VoxelCharacterProps) {
   const resolvedAccessory: BackAccessoryType =
@@ -67,30 +85,14 @@ export function VoxelCharacterModel({
   const rightShinRef = useRef<THREE.Group>(null);
   const capeRef = useRef<THREE.Group>(null);
 
-  const geos = useMemo(
-    () => ({
-      head: new RoundedBoxGeometry(0.46, 0.46, 0.46, 2, 0.045),
-      hairTop: new RoundedBoxGeometry(0.5, 0.16, 0.5, 2, 0.035),
-      hairBack: new RoundedBoxGeometry(0.5, 0.34, 0.14, 2, 0.03),
-      torso: new RoundedBoxGeometry(0.46, 0.64, 0.25, 2, 0.035),
-      jacket: new RoundedBoxGeometry(0.52, 0.6, 0.29, 2, 0.04),
-      hoodCollar: new RoundedBoxGeometry(0.44, 0.12, 0.32, 2, 0.03),
-      arm: new RoundedBoxGeometry(0.19, 0.58, 0.19, 2, 0.03),
-      sleeve: new RoundedBoxGeometry(0.225, 0.38, 0.225, 2, 0.03),
-      thigh: new RoundedBoxGeometry(0.205, 0.34, 0.205, 2, 0.03),
-      shin: new RoundedBoxGeometry(0.195, 0.32, 0.195, 2, 0.025),
-      shoe: new RoundedBoxGeometry(0.215, 0.14, 0.27, 2, 0.03),
-      cape: new RoundedBoxGeometry(0.42, 0.66, 0.045, 2, 0.015),
-      backpack: new RoundedBoxGeometry(0.36, 0.44, 0.18, 2, 0.04),
-    }),
-    []
-  );
+  const geos = SHARED_CHAR_GEOS;
 
   const phaseRef = useRef(Math.random() * Math.PI * 2);
 
   useFrame(({ clock }, delta) => {
     const t = clock.getElapsedTime();
     const speed = speedRef ? speedRef.current : staticSpeed;
+    const activeSteer = steerAngleRef ? steerAngleRef.current : steerAngle;
 
     // 1. Natural Forward-Facing Seated Driving / Riding Kinematics
     if (isSeated) {
@@ -101,7 +103,7 @@ export function VoxelCharacterModel({
         rootRef.current.rotation.x = 0;
         rootRef.current.rotation.z = THREE.MathUtils.lerp(
           rootRef.current.rotation.z,
-          -steerAngle * 0.1,
+          -activeSteer * 0.1,
           0.18
         );
       }
@@ -132,12 +134,12 @@ export function VoxelCharacterModel({
 
         leftArmRef.current.rotation.x = THREE.MathUtils.lerp(
           leftArmRef.current.rotation.x,
-          basePitch - steerAngle * wheelDifferential,
+          basePitch - activeSteer * wheelDifferential,
           0.25
         );
         rightArmRef.current.rotation.x = THREE.MathUtils.lerp(
           rightArmRef.current.rotation.x,
-          basePitch + steerAngle * wheelDifferential,
+          basePitch + activeSteer * wheelDifferential,
           0.25
         );
         leftArmRef.current.rotation.z = inwardRoll;
@@ -147,7 +149,7 @@ export function VoxelCharacterModel({
       if (headRef.current) {
         headRef.current.rotation.y = THREE.MathUtils.lerp(
           headRef.current.rotation.y,
-          steerAngle * 0.48,
+          activeSteer * 0.48,
           0.18
         );
         headRef.current.rotation.x = 0.04;

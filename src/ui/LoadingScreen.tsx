@@ -7,19 +7,18 @@ export function LoadingScreen() {
   if (isWorldReady) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#070f18] px-6 text-center transition-opacity duration-700">
-      <div className="mb-5 flex items-center gap-2.5">
-        <div className="h-4 w-4 animate-bounce rounded-sm bg-pink-400 [animation-delay:-0.3s]" />
-        <div className="h-4 w-4 animate-bounce rounded-sm bg-emerald-400 [animation-delay:-0.15s]" />
-        <div className="h-4 w-4 animate-bounce rounded-sm bg-sky-400" />
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#060c18] px-6 text-center transition-opacity duration-700">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="h-3.5 w-3.5 animate-bounce rounded-sm bg-pink-400 [animation-delay:-0.3s]" />
+        <div className="h-3.5 w-3.5 animate-bounce rounded-sm bg-amber-300 [animation-delay:-0.15s]" />
+        <div className="h-3.5 w-3.5 animate-bounce rounded-sm bg-sky-400" />
       </div>
-      <div className="font-mono-code text-xs font-semibold tracking-widest text-pink-400 uppercase">
-        {DEVELOPER_PROFILE.worldTitle}
+      <div className="text-xs font-medium tracking-wide text-pink-300">
+        {DEVELOPER_PROFILE.name}
       </div>
-      <h1 className="mt-2 font-display text-2xl font-bold text-white sm:text-3xl">
-        Synthesizing PBR Blocks, Spring Foliage & WASM Physics...
+      <h1 className="mt-1.5 font-display text-2xl font-bold text-white">
+        Preparing 3D Story World...
       </h1>
-      <p className="mt-2 max-w-md text-xs text-slate-400">{DEVELOPER_PROFILE.tagline}</p>
     </div>
   );
 }

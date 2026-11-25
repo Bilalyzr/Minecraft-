@@ -15,7 +15,6 @@ import {
   Moon,
   Shirt,
   Sparkles,
-  Sun,
   Sunrise,
   Volume2,
   VolumeX,
@@ -24,9 +23,10 @@ import {
 import { DEVELOPER_PROFILE } from '../config/profile.config';
 import { VEHICLE_SPAWNS } from '../config/world.config';
 import { useWorldStore, type QualityTier } from '../store/useWorldStore';
+import { sanitizeHttpUrl } from '../utils/validation';
 
 const QUALITY_LABELS: Record<QualityTier, string> = {
-  ultra: 'Ultra RTX',
+  ultra: 'Ultra Quality',
   balanced: 'Balanced',
   performance: 'Fast FPS',
 };
@@ -34,7 +34,6 @@ const QUALITY_LABELS: Record<QualityTier, string> = {
 export function HUD() {
   const projects = useWorldStore((s) => s.projects);
   const visitorName = useWorldStore((s) => s.visitorName);
-  const visitorRole = useWorldStore((s) => s.visitorRole);
   const characterAppearance = useWorldStore((s) => s.characterAppearance);
 
   const timeOfDay = useWorldStore((s) => s.timeOfDay);
@@ -77,181 +76,158 @@ export function HUD() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-20 flex flex-col justify-between p-3.5 sm:p-5">
-      {/* Top Bar: Developer Identity + Story Quest Tracker + Action Pills */}
-      <div className="flex flex-col gap-2.5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          {/* Developer Profile & Resume Codex Glass Card */}
-          <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/15 bg-slate-950/78 px-3.5 py-2 shadow-2xl backdrop-blur-xl">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 via-rose-400 to-emerald-400 font-display text-lg font-bold text-slate-950 shadow-lg">
+      {/* Top Bar: Minimal Identity + Compact Story Stepper + Spatial Controls */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          {/* Minimal Identity & Resume Pill */}
+          <div className="glass-panel pointer-events-auto flex items-center gap-2.5 rounded-2xl px-3 py-1.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-pink-400 to-amber-300 font-display text-sm font-bold text-slate-950">
               {DEVELOPER_PROFILE.name.charAt(0)}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-display text-sm font-bold tracking-tight text-white sm:text-base">
-                  {DEVELOPER_PROFILE.name}
-                </span>
-                <button
-                  onClick={() => setResumeModalOpen(true)}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 font-mono-code text-[10px] font-semibold text-emerald-300 transition hover:bg-emerald-500/35"
-                >
-                  <BookOpen className="h-2.5 w-2.5" />
-                  <span>Resume Codex</span>
-                </button>
-              </div>
-              <p className="text-[11px] font-medium text-slate-300 sm:text-xs">
-                {DEVELOPER_PROFILE.role}
-              </p>
-            </div>
+            <span className="font-display text-sm font-semibold tracking-tight text-white">
+              {DEVELOPER_PROFILE.name}
+            </span>
+            <button
+              onClick={() => setResumeModalOpen(true)}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-2.5 py-1 text-xs font-medium text-emerald-300 transition hover:bg-white/18 hover:text-white"
+            >
+              <BookOpen className="h-3 w-3" />
+              <span>Resume</span>
+            </button>
 
-            <div className="ml-1 hidden items-center gap-1 border-l border-white/10 pl-2.5 sm:flex">
+            <div className="hidden items-center gap-0.5 border-l border-white/10 pl-1.5 sm:flex">
               <a
                 href={DEVELOPER_PROFILE.githubUrl}
                 target="_blank"
-                rel="noreferrer"
-                title="GitHub Profile"
+                rel="noopener noreferrer"
+                title="GitHub"
                 className="rounded-lg p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
               >
-                <Github className="h-4 w-4" />
+                <Github className="h-3.5 w-3.5" />
               </a>
               <a
                 href={DEVELOPER_PROFILE.linkedinUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 title="LinkedIn"
                 className="rounded-lg p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
               >
-                <Linkedin className="h-4 w-4" />
+                <Linkedin className="h-3.5 w-3.5" />
               </a>
               <a
                 href={DEVELOPER_PROFILE.email}
                 title={DEVELOPER_PROFILE.emailAddress}
                 className="rounded-lg p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
               >
-                <Mail className="h-4 w-4" />
+                <Mail className="h-3.5 w-3.5" />
               </a>
             </div>
           </div>
 
-          {/* Top-Right Action Pills: Visitor Wardrobe, Add Project, All Chapters, Lighting & Audio */}
-          <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-            {/* Visitor Avatar & Outfit Studio Button */}
+          {/* Top-Right Compact Spatial Action Bar */}
+          <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setWardrobeOpen(true)}
-              title="Customize Character Style, Outfit & Visitor Name [Key C]"
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-sky-400/40 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-xl transition hover:border-sky-300 hover:bg-slate-900"
+              title="Customize Avatar & Outfit (C)"
+              className="glass-pill flex cursor-pointer items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/10"
             >
               <span
-                className="h-3 w-3 rounded-full border border-white/40"
+                className="h-2.5 w-2.5 rounded-full border border-white/40"
                 style={{ backgroundColor: characterAppearance.jacketColor }}
               />
-              <Shirt className="h-3.5 w-3.5 text-sky-300" />
-              <span>
-                {visitorName ? `${visitorName}` : 'Character'} • Outfit [C]
-              </span>
+              <Shirt className="h-3.5 w-3.5 text-pink-300" />
+              <span className="max-w-[96px] truncate">{visitorName || 'Style'}</span>
             </button>
 
-            {/* Manually Add / Store Project Button */}
             <button
               onClick={() => openProjectCreator(null)}
-              title="Manually Add & Store a New Project Pavilion in 3D World"
-              className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-emerald-400/50 bg-slate-950/85 px-3 py-2 text-xs font-semibold text-emerald-300 shadow-lg backdrop-blur-xl transition hover:border-emerald-300 hover:bg-slate-900 hover:text-white"
+              title="Add New Project Pavilion"
+              className="glass-pill flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:border-white/25 hover:text-white"
             >
-              <FolderPlus className="h-3.5 w-3.5 text-emerald-400" />
-              <span>+ Add Project</span>
+              <FolderPlus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Add Project</span>
             </button>
 
-            {/* All Story Chapters & Projects Directory */}
             <button
               onClick={() => setDirectoryOpen(true)}
-              className="flex cursor-pointer items-center gap-2 rounded-xl border border-pink-400/50 bg-slate-950/85 px-3.5 py-2 text-xs font-semibold text-pink-200 shadow-lg backdrop-blur-xl transition hover:border-pink-300 hover:bg-slate-900 hover:text-white"
+              title="Story Chapters & Projects"
+              className="glass-pill flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/10"
             >
-              <LayoutGrid className="h-3.5 w-3.5 text-pink-400" />
-              <span>Story Chapters ({projects.length})</span>
+              <LayoutGrid className="h-3.5 w-3.5 text-pink-300" />
+              <span>Chapters ({projects.length})</span>
             </button>
 
             <button
               onClick={cycleTimeOfDay}
-              title="Switch Time of Day & Lighting"
-              className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/15 bg-slate-950/75 px-3 py-2 text-xs font-medium text-slate-200 shadow-lg backdrop-blur-xl transition hover:border-white/30 hover:text-white"
+              title={`Theme: ${timeOfDay === 'evening' ? 'Evening' : 'Night'} — Click to switch`}
+              className="glass-pill flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/10"
             >
-              {timeOfDay === 'morning' ? (
+              {timeOfDay === 'evening' ? (
                 <>
-                  <Sun className="h-3.5 w-3.5 text-amber-300" />
-                  <span className="hidden lg:inline">Morning</span>
-                </>
-              ) : timeOfDay === 'sunset' ? (
-                <>
-                  <Sunrise className="h-3.5 w-3.5 text-orange-400" />
-                  <span className="hidden lg:inline">Sunset</span>
+                  <Sunrise className="h-3.5 w-3.5 text-amber-300" />
+                  <span className="hidden md:inline">Evening</span>
                 </>
               ) : (
                 <>
                   <Moon className="h-3.5 w-3.5 text-sky-300" />
-                  <span className="hidden lg:inline">Night</span>
+                  <span className="hidden md:inline">Night</span>
                 </>
               )}
             </button>
 
             <button
               onClick={nextQuality}
-              title="Cycle Graphics Quality Preset"
-              className="hidden cursor-pointer items-center gap-1.5 rounded-xl border border-white/15 bg-slate-950/75 px-3 py-2 text-xs font-medium text-slate-200 shadow-lg backdrop-blur-xl transition hover:border-white/30 hover:text-white sm:flex"
+              title={`Graphics: ${QUALITY_LABELS[qualityTier]}`}
+              className="glass-pill hidden cursor-pointer items-center justify-center rounded-xl p-2 text-emerald-300 transition hover:border-white/25 hover:text-white sm:flex"
             >
-              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="hidden xl:inline">{QUALITY_LABELS[qualityTier]}</span>
+              <Sparkles className="h-3.5 w-3.5" />
             </button>
 
             <button
               onClick={toggleSound}
-              title={soundEnabled ? 'Mute Spring Soundscape' : 'Enable 3D Spring Soundscape'}
-              className="flex cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-slate-950/75 p-2 text-slate-200 shadow-lg backdrop-blur-xl transition hover:border-white/30 hover:text-white"
+              title={soundEnabled ? 'Mute Soundscape' : 'Enable Soundscape'}
+              className="glass-pill flex cursor-pointer items-center justify-center rounded-xl p-2 text-slate-200 transition hover:border-white/25 hover:text-white"
             >
               {soundEnabled ? (
-                <Volume2 className="h-4 w-4 text-emerald-400" />
+                <Volume2 className="h-3.5 w-3.5 text-emerald-300" />
               ) : (
-                <VolumeX className="h-4 w-4 text-slate-400" />
+                <VolumeX className="h-3.5 w-3.5 text-slate-400" />
               )}
             </button>
 
             <button
               onClick={() => setControlsHelpOpen(!isControlsHelpOpen)}
-              title="Controls Guide"
-              className="flex cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-slate-950/75 p-2 text-slate-200 shadow-lg backdrop-blur-xl transition hover:border-white/30 hover:text-white"
+              title="Controls"
+              className="glass-pill flex cursor-pointer items-center justify-center rounded-xl p-2 text-slate-200 transition hover:border-white/25 hover:text-white"
             >
-              <HelpCircle className="h-4 w-4" />
+              <HelpCircle className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Interactive Storytelling Concept Quest Tracker Bar */}
+        {/* Sleek Minimal Story Stepper Pill */}
         {currentStoryProject && (
-          <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 self-start rounded-2xl border border-amber-400/30 bg-slate-950/80 px-3.5 py-1.5 text-xs shadow-xl backdrop-blur-xl">
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-amber-400/20 px-2 py-0.5 font-mono-code text-[10px] font-bold text-amber-300 uppercase">
-                📖 Story Quest ({visitedProjectIds.length}/{projects.length})
-              </span>
-              <span className="font-semibold text-white">
-                {currentStoryProject.chapterNumber || `Chapter #${currentStoryProject.number}`}:{' '}
-                {currentStoryProject.title}
-              </span>
-              <span className="hidden text-[11px] text-slate-400 md:inline">
-                — {currentStoryProject.subtitle}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
+          <div className="glass-pill pointer-events-auto flex items-center gap-2.5 self-start rounded-xl px-3 py-1 text-xs">
+            <span className="font-mono-code text-[11px] font-semibold text-amber-300">
+              {String(visitedProjectIds.length).padStart(2, '0')}/
+              {String(projects.length).padStart(2, '0')}
+            </span>
+            <span className="max-w-[200px] truncate font-medium text-white/90 sm:max-w-xs">
+              {currentStoryProject.title}
+            </span>
+            <div className="flex items-center gap-1 border-l border-white/10 pl-2">
               <button
                 onClick={() => teleportToStoryChapter(storyChapterIndex)}
-                className="cursor-pointer rounded-lg bg-amber-400/20 px-2 py-0.5 font-mono-code text-[10px] font-bold text-amber-200 transition hover:bg-amber-400/35"
+                className="cursor-pointer rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-200 transition hover:bg-white/20 hover:text-white"
               >
-                Visit Chapter
+                Visit
               </button>
               <button
                 onClick={() => teleportToStoryChapter(storyChapterIndex + 1)}
-                title="Fast-Travel to Next Story Chapter [Key N]"
-                className="flex cursor-pointer items-center gap-0.5 rounded-lg bg-pink-500/25 px-2 py-0.5 font-mono-code text-[10px] font-bold text-pink-200 transition hover:bg-pink-500/40"
+                title="Next Chapter (N)"
+                className="flex cursor-pointer items-center gap-0.5 rounded-md bg-pink-500/25 px-2 py-0.5 text-[11px] font-medium text-pink-200 transition hover:bg-pink-500/40"
               >
-                <span>Next [N]</span>
+                <span>Next</span>
                 <ChevronRight className="h-3 w-3" />
               </button>
             </div>
@@ -259,13 +235,11 @@ export function HUD() {
         )}
       </div>
 
-      {/* Optional Expandable Controls Cheat-Sheet Card */}
+      {/* Expandable Controls Cheat-Sheet Card */}
       {isControlsHelpOpen && (
-        <div className="pointer-events-auto mx-auto max-w-md rounded-2xl border border-white/20 bg-slate-950/90 p-4 text-xs text-slate-200 shadow-2xl backdrop-blur-xl">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="font-display text-sm font-bold text-white">
-              Story World, Wardrobe & Vehicle Controls
-            </span>
+        <div className="glass-panel pointer-events-auto mx-auto max-w-md rounded-2xl p-4 text-xs text-slate-200">
+          <div className="mb-2.5 flex items-center justify-between">
+            <span className="font-display text-sm font-semibold text-white">Controls</span>
             <button
               onClick={() => setControlsHelpOpen(false)}
               className="cursor-pointer text-slate-400 hover:text-white"
@@ -275,232 +249,209 @@ export function HUD() {
           </div>
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">WASD / Arrows</kbd>{' '}
-              Walk or Drive
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">WASD</kbd> Move /
+              Drive
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">Drag Mouse</kbd>{' '}
-              360° Orbit Camera
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">Drag</kbd> Orbit
+              Camera
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">C</kbd> Change
-              Character & Outfit
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">C</kbd> Style
+              Studio
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">N</kbd> Next Story
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">N</kbd> Next
               Chapter
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">Shift</kbd> Sprint /
-              Turbo Boost
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">Shift</kbd> Sprint /
+              Turbo
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">Space</kbd> Jump /
-              Drift Brake
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">Space</kbd> Jump /
+              Drift
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">F</kbd> Enter / Exit
-              Vehicle
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">F</kbd> Enter / Exit
+              Ride
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">1 / 2 / 3</kbd>{' '}
-              Summon 4x4 / GT / Scooter
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">1 / 2 / 3</kbd>{' '}
+              Summon Ride
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">Enter / E</kbd> Open
-              Pad / Wardrobe
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">Enter / E</kbd>{' '}
+              Inspect Pad
             </div>
             <div>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 font-mono-code">H / G</kbd> Car Horn
-              / Wave Emote
+              <kbd className="rounded bg-white/12 px-1.5 py-0.5 font-mono-code">H / G</kbd> Horn /
+              Wave
             </div>
           </div>
         </div>
       )}
 
-      {/* Bottom Bar: Controls Pill + Center Active Project / Wardrobe / Vehicle Dock */}
+      {/* Bottom Bar: Compact Vehicle Dock + Active Context Card */}
       <div className="flex flex-col items-center justify-between gap-3 md:flex-row md:items-end">
-        {/* Bottom-Left Controls & Summon Vehicle Bar */}
-        <div className="pointer-events-auto hidden flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-slate-950/75 px-3.5 py-2 text-[11px] text-slate-300 shadow-xl backdrop-blur-xl md:flex">
-          <span>
-            <strong className="font-mono-code text-white">WASD</strong> Move
-          </span>
-          <span className="text-slate-600">•</span>
-          <span>
-            <strong className="font-mono-code text-white">C</strong> Outfit
-          </span>
-          <span className="text-slate-600">•</span>
-          <span>
-            <strong className="font-mono-code text-white">Shift</strong>{' '}
-            {drivingVehicleId ? 'Boost' : 'Sprint'}
-          </span>
-          <span className="text-slate-600">•</span>
+        {/* Bottom-Left Compact Ride Selector */}
+        <div className="glass-pill pointer-events-auto hidden items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs md:flex">
           {!drivingVehicleId ? (
-            <div className="flex items-center gap-1.5">
+            <>
+              <Car className="mr-0.5 h-3.5 w-3.5 text-slate-400" />
               <button
                 onClick={() => requestSummonVehicle('rover')}
-                title="Summon Sakura Trail 4x4 Safari [Key 1 or V]"
-                className="flex cursor-pointer items-center gap-1 rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300 transition hover:bg-emerald-500/30"
+                title="Summon 4x4 Safari (1)"
+                className="cursor-pointer rounded-lg px-2 py-0.5 font-medium text-emerald-300 transition hover:bg-white/10"
               >
-                <Car className="h-3 w-3" />
-                <span>[1] 4x4</span>
+                4x4
               </button>
               <button
                 onClick={() => requestSummonVehicle('kart')}
-                title="Summon Blossom GT Roadster [Key 2]"
-                className="flex cursor-pointer items-center gap-1 rounded-lg border border-rose-400/35 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-300 transition hover:bg-rose-500/30"
+                title="Summon GT Roadster (2)"
+                className="cursor-pointer rounded-lg px-2 py-0.5 font-medium text-rose-300 transition hover:bg-white/10"
               >
-                <span>[2] GT</span>
+                Roadster
               </button>
               <button
                 onClick={() => requestSummonVehicle('scooter')}
-                title="Summon Meadow Breeze Scooter [Key 3]"
-                className="flex cursor-pointer items-center gap-1 rounded-lg border border-teal-400/35 bg-teal-500/15 px-2 py-0.5 font-semibold text-teal-300 transition hover:bg-teal-500/30"
+                title="Summon Scooter (3)"
+                className="cursor-pointer rounded-lg px-2 py-0.5 font-medium text-teal-300 transition hover:bg-white/10"
               >
-                <span>[3] Scooter</span>
+                Scooter
               </button>
-            </div>
+            </>
           ) : (
             <button
               onClick={triggerInteract}
-              className="flex cursor-pointer items-center gap-1 rounded-lg border border-rose-400/35 bg-rose-500/15 px-2 py-0.5 font-semibold text-rose-300 transition hover:bg-rose-500/30"
+              className="cursor-pointer rounded-lg bg-rose-500/20 px-2.5 py-0.5 font-medium text-rose-200 transition hover:bg-rose-500/35"
             >
-              <span>[F] Exit Vehicle</span>
+              Exit Vehicle (F)
             </button>
           )}
         </div>
 
-        {/* Center Context Dock: Project Pavilion Card, Wardrobe Atelier Card, OR Vehicle Speedometer */}
-        <div className="pointer-events-auto flex flex-col items-center gap-2.5 md:mx-auto">
-          {/* 3D Wardrobe Boutique Proximity Card */}
+        {/* Center Context Dock */}
+        <div className="pointer-events-auto flex flex-col items-center gap-2 md:mx-auto">
           {isNearWardrobe && !activeProject && (
-            <div className="flex w-[92vw] max-w-lg flex-col gap-3 rounded-2xl border border-pink-400/40 bg-slate-950/90 p-4 shadow-2xl backdrop-blur-2xl sm:flex-row sm:items-center sm:justify-between">
+            <div className="glass-panel flex items-center gap-4 rounded-2xl px-4 py-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-pink-500/25 px-2 py-0.5 font-mono-code text-[10px] font-bold text-pink-300 uppercase">
-                    3D WARDROBE SPACE
-                  </span>
-                  <span className="text-[11px] text-slate-400">West Blossom Courtyard</span>
-                </div>
-                <h3 className="mt-1 font-display text-base font-bold text-white">
-                  Sakura Style & Outfit Atelier
+                <div className="text-[11px] font-medium text-pink-300">Style Atelier</div>
+                <h3 className="font-display text-sm font-semibold text-white">
+                  Customize Avatar & Outfit
                 </h3>
-                <p className="text-xs text-slate-300">
-                  Customize {visitorName || 'your explorer'}’s hairstyle, headgear, jacket, and back
-                  gear in real time!
-                </p>
               </div>
               <button
                 onClick={() => setWardrobeOpen(true)}
-                className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-lg transition hover:brightness-110"
+                className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-gradient-to-r from-pink-400 to-violet-400 px-3.5 py-2 text-xs font-semibold text-slate-950 transition hover:brightness-110"
               >
-                <Shirt className="h-4 w-4" />
-                <span>Customize Outfit [Enter / C]</span>
+                <Shirt className="h-3.5 w-3.5" />
+                <span>Customize</span>
               </button>
             </div>
           )}
 
-          {/* Active Project Pavilion Proximity Card */}
           {activeProject && (
-            <div className="flex w-[92vw] max-w-xl flex-col gap-3 rounded-2xl border border-white/20 bg-slate-950/88 p-4 shadow-2xl backdrop-blur-2xl sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="rounded-md px-2 py-0.5 font-mono-code text-[10px] font-bold uppercase"
-                    style={{
-                      backgroundColor: `${activeProject.accentColor}26`,
-                      color: activeProject.accentColor,
-                    }}
-                  >
-                    {activeProject.chapterNumber || `#${activeProject.number}`} •{' '}
-                    {activeProject.category}
-                  </span>
-                  <span className="text-[11px] text-slate-400">{activeProject.districtName}</span>
+            <div className="glass-panel flex w-[92vw] max-w-lg items-center justify-between gap-3 rounded-2xl px-4 py-3">
+              <div className="min-w-0">
+                <div
+                  className="text-[11px] font-medium"
+                  style={{ color: activeProject.accentColor }}
+                >
+                  {activeProject.chapterNumber || `Project ${activeProject.number}`} ·{' '}
+                  {activeProject.category}
                 </div>
-                <h3 className="mt-1 font-display text-base font-bold text-white sm:text-lg">
+                <h3 className="truncate font-display text-base font-semibold text-white">
                   {activeProject.title}
                 </h3>
-                <p className="line-clamp-1 text-xs text-slate-300">{activeProject.subtitle}</p>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   onClick={() => openProjectModal(activeProject.id)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-950 shadow-lg transition hover:brightness-110"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-950 transition hover:brightness-110"
                   style={{ backgroundColor: activeProject.accentColor }}
                 >
                   <Compass className="h-3.5 w-3.5" />
-                  <span>Story & Case Study [Enter]</span>
+                  <span>Explore</span>
                 </button>
                 <button
                   onClick={() => openProjectCreator(activeProject.id)}
-                  className="flex cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/10 p-2 text-white transition hover:bg-white/20"
-                  title="Edit Project Information"
+                  className="flex cursor-pointer items-center justify-center rounded-xl border border-white/12 bg-white/8 p-2 text-white transition hover:bg-white/15"
+                  title="Edit"
                 >
-                  <Edit3 className="h-4 w-4" />
+                  <Edit3 className="h-3.5 w-3.5" />
                 </button>
-                <a
-                  href={activeProject.liveUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center rounded-xl border border-white/15 bg-white/10 p-2 text-white transition hover:bg-white/20"
-                  title="Open Link"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-                <a
-                  href={activeProject.repoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center rounded-xl border border-white/15 bg-white/10 p-2 text-white transition hover:bg-white/20"
-                  title="GitHub Repository"
-                >
-                  <FolderGit2 className="h-4 w-4" />
-                </a>
+                {sanitizeHttpUrl(activeProject.liveUrl) && (
+                  <a
+                    href={sanitizeHttpUrl(activeProject.liveUrl)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center rounded-xl border border-white/12 bg-white/8 p-2 text-white transition hover:bg-white/15"
+                    title="Open Link"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {sanitizeHttpUrl(activeProject.repoUrl) && (
+                  <a
+                    href={sanitizeHttpUrl(activeProject.repoUrl)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center rounded-xl border border-white/12 bg-white/8 p-2 text-white transition hover:bg-white/15"
+                    title="Repository"
+                  >
+                    <FolderGit2 className="h-3.5 w-3.5" />
+                  </a>
+                )}
               </div>
             </div>
           )}
 
-          {/* Vehicle Digital Speedometer Pill */}
           {drivingVehicleId && activeVehicleSpec && (
-            <div className="flex items-center gap-4 rounded-2xl border border-white/15 bg-slate-950/85 px-4 py-2.5 shadow-2xl backdrop-blur-xl">
-              <div>
-                <div className="text-[10px] font-semibold tracking-wider text-emerald-400 uppercase">
-                  Driving • [H] Horn • [Space] Drift
-                </div>
-                <div className="font-display text-xs font-bold text-white">
+            <div className="glass-panel flex items-center gap-4 rounded-2xl px-4 py-2">
+              <div className="min-w-[120px]">
+                <div className="font-display text-xs font-semibold text-white">
                   {activeVehicleSpec.name}
                 </div>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={`h-full rounded-full transition-all duration-150 ${
+                      isBoosting
+                        ? 'bg-gradient-to-r from-amber-400 to-rose-500'
+                        : 'bg-gradient-to-r from-emerald-400 to-sky-400'
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.max(6, (vehicleSpeedKmh / 95) * 100))}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="flex items-baseline gap-1 border-l border-white/10 pl-4">
-                <span className="font-mono-code text-2xl font-bold text-white">
+              <div className="flex items-baseline gap-1 border-l border-white/10 pl-3.5">
+                <span className="font-mono-code text-xl font-bold text-white">
                   {vehicleSpeedKmh}
                 </span>
                 <span className="font-mono-code text-[10px] text-slate-400">KM/H</span>
               </div>
               {isBoosting && (
-                <span className="flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 font-mono-code text-[10px] font-bold text-amber-300">
-                  <Zap className="h-3 w-3" /> TURBO
+                <span className="flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 font-mono-code text-[10px] font-semibold text-amber-300">
+                  <Zap className="h-3 w-3" /> Turbo
                 </span>
               )}
             </div>
           )}
 
-          {/* Quick Tap Mount Pill When Near Vehicle on Touch/Desktop */}
           {!drivingVehicleId && nearbyVehicleId && !activeProject && !isNearWardrobe && (
             <button
               onClick={triggerInteract}
-              className="flex cursor-pointer items-center gap-2 rounded-full border border-emerald-400/50 bg-slate-950/85 px-4 py-2 text-xs font-bold text-white shadow-2xl backdrop-blur-xl transition hover:bg-emerald-950/80"
+              className="glass-pill flex cursor-pointer items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-white transition hover:border-white/30"
             >
-              <Car className="h-4 w-4 text-emerald-400" />
-              <span>
-                Press [F] or Click to Drive {nearbyVehicleSpec?.name ?? 'Vehicle'}
-              </span>
+              <Car className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Drive {nearbyVehicleSpec?.name ?? 'Vehicle'} (F)</span>
             </button>
           )}
         </div>
 
-        {/* Spacer for Bottom-Right Minimap */}
         <div className="hidden w-44 md:block" />
       </div>
     </div>

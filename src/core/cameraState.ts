@@ -32,6 +32,6 @@ if (typeof window !== 'undefined') {
   });
 }
 
-if (import.meta.env.DEV && typeof window !== 'undefined') {
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__CAMERA_STATE__ = cameraState;
 }

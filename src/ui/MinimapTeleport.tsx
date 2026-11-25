@@ -69,7 +69,20 @@ export function MinimapTeleport() {
 
   return (
     <div className="pointer-events-auto fixed right-3.5 bottom-3.5 z-30 hidden flex-col items-end gap-1.5 sm:flex sm:right-5 sm:bottom-5">
-      <div className="relative h-44 w-44 overflow-hidden rounded-2xl border border-white/20 bg-slate-950/82 shadow-2xl backdrop-blur-xl">
+      <div className="glass-panel relative h-44 w-44 overflow-hidden rounded-2xl">
+        {/* Subtle Radar Grid & Valley Road Network */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-20"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.12) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+          }}
+        />
+        {/* Compass North Badge */}
+        <div className="pointer-events-none absolute top-1.5 right-2 z-10 rounded bg-slate-900/80 px-1 py-0.2 font-mono-code text-[8px] font-bold text-pink-300 ring-1 ring-white/15">
+          N ▲
+        </div>
         {/* Emerald River Band */}
         <div
           className="absolute inset-x-0 border-y border-teal-300/30 bg-teal-400/25"
@@ -169,23 +182,19 @@ export function MinimapTeleport() {
         >
           <div className="h-0 w-0 border-x-[5px] border-b-[10px] border-x-transparent border-b-white drop-shadow" />
         </div>
-
-        <div className="pointer-events-none absolute bottom-1.5 left-2 font-mono-code text-[8px] font-semibold text-slate-300/90">
-          CLICK PIN TO TELEPORT
-        </div>
       </div>
 
       <div className="flex items-center gap-1.5">
         <button
           onClick={teleportToWardrobe}
-          className="flex cursor-pointer items-center gap-1 rounded-xl border border-pink-400/35 bg-slate-950/80 px-2.5 py-1 text-[10px] font-semibold text-pink-200 backdrop-blur-md transition hover:border-pink-300 hover:text-white"
+          className="glass-pill flex cursor-pointer items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium text-pink-200 transition hover:border-white/25 hover:text-white"
         >
-          <Shirt className="h-3 w-3 text-pink-400" />
-          <span>3D Style Atelier</span>
+          <Shirt className="h-3 w-3 text-pink-300" />
+          <span>Atelier</span>
         </button>
         <button
           onClick={() => requestTeleport([0, 0.3, 11], [0, 1.5, -2])}
-          className="flex cursor-pointer items-center gap-1 rounded-xl border border-white/15 bg-slate-950/80 px-2.5 py-1 text-[10px] font-semibold text-slate-300 backdrop-blur-md transition hover:border-white/30 hover:text-white"
+          className="glass-pill flex cursor-pointer items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium text-slate-200 transition hover:border-white/25 hover:text-white"
         >
           <LocateFixed className="h-3 w-3 text-emerald-400" />
           <span>Plaza</span>

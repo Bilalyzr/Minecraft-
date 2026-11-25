@@ -45,7 +45,7 @@ export function MobileControls() {
         ref={padRef}
         onPointerDown={(e) => {
           activeTouchRef.current = true;
-          (e.target as HTMLElement).setPointerCapture(e.pointerId);
+          e.currentTarget.setPointerCapture(e.pointerId);
           updateStick(e.clientX, e.clientY);
         }}
         onPointerMove={(e) => {

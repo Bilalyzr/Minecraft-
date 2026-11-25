@@ -20,52 +20,37 @@ export function SkyAtmosphere() {
   const cloudsRef = useRef<THREE.Group>(null);
 
   const lighting = useMemo(() => {
-    if (timeOfDay === 'sunset') {
-      return {
-        sunPos: [-92, 22, -52] as [number, number, number],
-        sunColor: '#ffa86b',
-        sunIntensity: 3.15,
-        ambientIntensity: 0.54,
-        hemiSky: '#fecdd3',
-        hemiGround: '#4d7c0f',
-        fogColor: '#f6b89e',
-        bgColor: '#ea927c',
-        cloudTop: '#fff7ed',
-        cloudBottom: '#fed7aa',
-        turbidity: 7.2,
-        rayleigh: 2.4,
-      };
-    }
     if (timeOfDay === 'night') {
       return {
-        sunPos: [-58, 64, 52] as [number, number, number],
-        sunColor: '#93c5fd',
-        sunIntensity: 0.95,
-        ambientIntensity: 0.34,
-        hemiSky: '#1e3a8a',
+        sunPos: [-58, 66, 52] as [number, number, number],
+        sunColor: '#a5ccff',
+        sunIntensity: 1.35,
+        ambientIntensity: 0.44,
+        hemiSky: '#3b82f6',
         hemiGround: '#1e293b',
-        fogColor: '#0c182d',
-        bgColor: '#071020',
+        fogColor: '#091529',
+        bgColor: '#050c1a',
         cloudTop: '#475569',
         cloudBottom: '#1e293b',
         turbidity: 2.0,
         rayleigh: 0.5,
       };
     }
-    // Crisp, bright Minecraft Spring Morning palette
+
+    // Golden-Hour Sakura Evening Twilight Palette
     return {
-      sunPos: [76, 68, -56] as [number, number, number],
-      sunColor: '#fff9eb',
-      sunIntensity: 3.25,
-      ambientIntensity: 0.65,
-      hemiSky: '#cbeafe',
-      hemiGround: '#558b2f',
-      fogColor: '#d9f0ff',
-      bgColor: '#a7dbff',
-      cloudTop: '#ffffff',
-      cloudBottom: '#e0f2fe',
-      turbidity: 2.6,
-      rayleigh: 1.05,
+      sunPos: [-92, 24, -52] as [number, number, number],
+      sunColor: '#ffad70',
+      sunIntensity: 3.15,
+      ambientIntensity: 0.58,
+      hemiSky: '#fbcfe8',
+      hemiGround: '#3f6212',
+      fogColor: '#eca895',
+      bgColor: '#df8578',
+      cloudTop: '#fff3e6',
+      cloudBottom: '#fdba74',
+      turbidity: 6.4,
+      rayleigh: 2.25,
     };
   }, [timeOfDay]);
 
@@ -99,23 +84,39 @@ export function SkyAtmosphere() {
   });
 
   const shadowMapSize = qualityTier === 'ultra' ? 2048 : qualityTier === 'balanced' ? 1536 : 1024;
+  const isNight = timeOfDay === 'night';
 
   return (
     <>
       <color attach="background" args={[lighting.bgColor]} />
-      <fogExp2 attach="fog" args={[lighting.fogColor, timeOfDay === 'night' ? 0.0042 : 0.0024]} />
+      <fogExp2 attach="fog" args={[lighting.fogColor, isNight ? 0.0038 : 0.0022]} />
 
-      {timeOfDay !== 'night' ? (
+      {!isNight ? (
         <Sky
           distance={4500}
           sunPosition={lighting.sunPos}
           turbidity={lighting.turbidity}
           rayleigh={lighting.rayleigh}
-          mieCoefficient={0.004}
-          mieDirectionalG={0.8}
+          mieCoefficient={0.005}
+          mieDirectionalG={0.82}
         />
       ) : (
-        <Stars radius={220} depth={80} count={3800} factor={4.4} saturation={0.35} fade speed={0.5} />
+        <>
+          <Stars
+            radius={220}
+            depth={80}
+            count={4200}
+            factor={4.6}
+            saturation={0.4}
+            fade
+            speed={0.45}
+          />
+          {/* Luminous Stylized Moon */}
+          <mesh position={[-85, 88, 72]}>
+            <boxGeometry args={[9, 9, 9]} />
+            <meshBasicMaterial color="#e0f2fe" fog={false} />
+          </mesh>
+        </>
       )}
 
       {/* Offline Zero-Latency Procedural HDR Environment Map */}
@@ -123,7 +124,7 @@ export function SkyAtmosphere() {
         <color attach="background" args={[lighting.hemiSky]} />
         <Lightformer
           form="circle"
-          intensity={timeOfDay === 'night' ? 1.4 : 5.2}
+          intensity={isNight ? 1.8 : 4.8}
           color={lighting.sunColor}
           scale={[22, 22, 1]}
           position={lighting.sunPos}
@@ -131,7 +132,7 @@ export function SkyAtmosphere() {
         />
         <Lightformer
           form="rect"
-          intensity={timeOfDay === 'night' ? 0.55 : 1.75}
+          intensity={isNight ? 0.75 : 1.55}
           color={lighting.hemiSky}
           scale={[110, 40, 1]}
           position={[0, 45, 0]}
@@ -139,15 +140,23 @@ export function SkyAtmosphere() {
         />
         <Lightformer
           form="ring"
-          intensity={1.15}
-          color="#fbcfe8"
+          intensity={isNight ? 1.35 : 1.25}
+          color={isNight ? '#38bdf8' : '#fbcfe8'}
           scale={[55, 55, 1]}
           position={[0, 10, -55]}
         />
       </Environment>
 
       <ambientLight intensity={lighting.ambientIntensity} color={lighting.hemiSky} />
-      <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, 0.72]} />
+      <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, isNight ? 0.68 : 0.8]} />
+
+      {/* Warm Central Plaza Bounce Fill Light */}
+      <pointLight
+        position={[0, 5.5, 2]}
+        color={isNight ? '#38bdf8' : '#fdba74'}
+        intensity={isNight ? 4.2 : 2.2}
+        distance={42}
+      />
 
       <directionalLight
         position={lighting.sunPos}
@@ -162,10 +171,11 @@ export function SkyAtmosphere() {
         shadow-camera-right={105}
         shadow-camera-top={105}
         shadow-camera-bottom={-105}
-        shadow-bias={-0.0004}
+        shadow-bias={-0.00035}
+        shadow-normalBias={0.02}
       />
 
-      {/* Crisp Self-Lit Stylized Minecraft Volumetric Clouds (Zero Muddy Ground Bounce!) */}
+      {/* Stylized Volumetric Minecraft Clouds */}
       <group ref={cloudsRef}>
         {clouds.map((c, idx) => (
           <group key={idx} position={[c.x, c.y, c.z]}>
@@ -174,7 +184,7 @@ export function SkyAtmosphere() {
               <meshBasicMaterial
                 color={lighting.cloudTop}
                 transparent
-                opacity={timeOfDay === 'night' ? 0.42 : 0.92}
+                opacity={isNight ? 0.36 : 0.9}
                 fog={false}
               />
             </mesh>
@@ -183,7 +193,7 @@ export function SkyAtmosphere() {
               <meshBasicMaterial
                 color={lighting.cloudBottom}
                 transparent
-                opacity={timeOfDay === 'night' ? 0.35 : 0.88}
+                opacity={isNight ? 0.28 : 0.85}
                 fog={false}
               />
             </mesh>
@@ -195,7 +205,7 @@ export function SkyAtmosphere() {
               <meshBasicMaterial
                 color={lighting.cloudTop}
                 transparent
-                opacity={timeOfDay === 'night' ? 0.38 : 0.9}
+                opacity={isNight ? 0.32 : 0.88}
                 fog={false}
               />
             </mesh>

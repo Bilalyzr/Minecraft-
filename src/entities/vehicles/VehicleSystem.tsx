@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier';
@@ -9,6 +9,40 @@ import { useWorldStore } from '../../store/useWorldStore';
 import { isTypingInInput, keyInputState } from '../../core/cameraState';
 import { VoxelCharacterModel } from '../shared/VoxelCharacterModel';
 import { soundEngine } from '../../audio/soundEngine';
+
+const TIRE_GEO_CACHE = new Map<string, RoundedBoxGeometry>();
+function getTireGeometry(width: number, radius: number): RoundedBoxGeometry {
+  const key = `${width}:${radius}`;
+  let geo = TIRE_GEO_CACHE.get(key);
+  if (!geo) {
+    geo = new RoundedBoxGeometry(width, radius * 2, radius * 2, 3, radius * 0.28);
+    TIRE_GEO_CACHE.set(key, geo);
+  }
+  return geo;
+}
+
+const SEAT_GEOS = {
+  cushion: new RoundedBoxGeometry(0.54, 0.13, 0.54, 2, 0.03),
+  back: new RoundedBoxGeometry(0.52, 0.58, 0.13, 2, 0.03),
+  headrest: new RoundedBoxGeometry(0.34, 0.2, 0.11, 2, 0.03),
+};
+
+const VEHICLE_BODY_GEOS = {
+  hoodRover: new RoundedBoxGeometry(1.76, 0.48, 1.24, 2, 0.06),
+  sillRover: new RoundedBoxGeometry(0.22, 0.44, 1.54, 2, 0.04),
+  rearRover: new RoundedBoxGeometry(1.82, 0.54, 1.02, 2, 0.05),
+  fenderArch: new RoundedBoxGeometry(0.32, 0.22, 0.96, 2, 0.04),
+  bumper: new RoundedBoxGeometry(1.94, 0.18, 0.24, 2, 0.04),
+
+  noseKart: new RoundedBoxGeometry(1.78, 0.36, 1.26, 2, 0.06),
+  sillKart: new RoundedBoxGeometry(0.24, 0.36, 1.48, 2, 0.04),
+  rearKart: new RoundedBoxGeometry(1.84, 0.46, 1.06, 2, 0.06),
+
+  scooterShield: new RoundedBoxGeometry(0.68, 0.86, 0.2, 2, 0.05),
+  scooterFloor: new RoundedBoxGeometry(0.64, 0.14, 0.92, 2, 0.03),
+  scooterCowl: new RoundedBoxGeometry(0.72, 0.46, 0.96, 2, 0.08),
+  scooterSeat: new RoundedBoxGeometry(0.46, 0.16, 0.68, 2, 0.05),
+};
 
 function DetailedWheel({
   radius,
@@ -23,10 +57,7 @@ function DetailedWheel({
   spinRefSetter: (el: THREE.Group | null) => void;
   isLeft: boolean;
 }) {
-  const tireGeo = useMemo(
-    () => new RoundedBoxGeometry(width, radius * 2, radius * 2, 3, radius * 0.28),
-    [width, radius]
-  );
+  const tireGeo = useMemo(() => getTireGeometry(width, radius), [width, radius]);
 
   return (
     <group ref={spinRefSetter}>
@@ -61,9 +92,9 @@ function ContouredBucketSeat({
   position: [number, number, number];
   leatherColor: string;
 }) {
-  const cushionGeo = useMemo(() => new RoundedBoxGeometry(0.54, 0.13, 0.54, 2, 0.03), []);
-  const backGeo = useMemo(() => new RoundedBoxGeometry(0.52, 0.58, 0.13, 2, 0.03), []);
-  const headrestGeo = useMemo(() => new RoundedBoxGeometry(0.34, 0.2, 0.11, 2, 0.03), []);
+  const cushionGeo = SEAT_GEOS.cushion;
+  const backGeo = SEAT_GEOS.back;
+  const headrestGeo = SEAT_GEOS.headrest;
 
   return (
     <group position={position}>
@@ -102,7 +133,6 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
   const wheelSpinRefs = useRef<(THREE.Group | null)[]>([null, null, null, null]);
   const dustTrailRef = useRef<THREE.InstancedMesh>(null);
 
-  const [steerVisual, setSteerVisual] = useState(0);
   const steerAngleRef = useRef(0);
   const wheelSpinRef = useRef(0);
 
@@ -117,25 +147,7 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
   const isScooter = spec.id === 'scooter';
   const isRover = spec.id === 'rover';
 
-  const geos = useMemo(
-    () => ({
-      hoodRover: new RoundedBoxGeometry(1.76, 0.48, 1.24, 2, 0.06),
-      sillRover: new RoundedBoxGeometry(0.22, 0.44, 1.54, 2, 0.04),
-      rearRover: new RoundedBoxGeometry(1.82, 0.54, 1.02, 2, 0.05),
-      fenderArch: new RoundedBoxGeometry(0.32, 0.22, 0.96, 2, 0.04),
-      bumper: new RoundedBoxGeometry(1.94, 0.18, 0.24, 2, 0.04),
-
-      noseKart: new RoundedBoxGeometry(1.78, 0.36, 1.26, 2, 0.06),
-      sillKart: new RoundedBoxGeometry(0.24, 0.36, 1.48, 2, 0.04),
-      rearKart: new RoundedBoxGeometry(1.84, 0.46, 1.06, 2, 0.06),
-
-      scooterShield: new RoundedBoxGeometry(0.68, 0.86, 0.2, 2, 0.05),
-      scooterFloor: new RoundedBoxGeometry(0.64, 0.14, 0.92, 2, 0.03),
-      scooterCowl: new RoundedBoxGeometry(0.72, 0.46, 0.96, 2, 0.08),
-      scooterSeat: new RoundedBoxGeometry(0.46, 0.16, 0.68, 2, 0.05),
-    }),
-    []
-  );
+  const geos = VEHICLE_BODY_GEOS;
 
   const trailParticles = useMemo(
     () =>
@@ -202,7 +214,7 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
     let throttle = 0;
     let steerInput = 0;
 
-    if (!store.activeModalProjectId) {
+    if (!store.activeModalProjectId && !store.isWardrobeOpen && !store.isProjectCreatorOpen && !store.isResumeModalOpen && !store.isDirectoryOpen) {
       if (keyInputState['KeyW'] || keyInputState['ArrowUp']) throttle += 1;
       if (keyInputState['KeyS'] || keyInputState['ArrowDown']) throttle -= 0.72;
       if (keyInputState['KeyA'] || keyInputState['ArrowLeft']) steerInput += 1;
@@ -267,9 +279,6 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
       steerInput * 0.56,
       Math.min(1, delta * 11)
     );
-    if (Math.abs(steerAngleRef.current - steerVisual) > 0.025) {
-      setSteerVisual(steerAngleRef.current);
-    }
 
     const speedSign = nextForwardSpeed >= -0.2 ? 1 : -1;
     const turnAuthority = Math.min(1, Math.abs(nextForwardSpeed) / 2.8);
@@ -628,7 +637,7 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
                     capeColor={characterAppearance.capeColor}
                     isSeated
                     seatPosture="car"
-                    steerAngle={steerVisual}
+                    steerAngleRef={steerAngleRef}
                   />
                 </group>
               )}
@@ -782,7 +791,7 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
                     capeColor={characterAppearance.capeColor}
                     isSeated
                     seatPosture="car"
-                    steerAngle={steerVisual}
+                    steerAngleRef={steerAngleRef}
                   />
                 </group>
               )}
@@ -900,7 +909,7 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
                     capeColor={characterAppearance.capeColor}
                     isSeated
                     seatPosture="scooter"
-                    steerAngle={steerVisual}
+                    steerAngleRef={steerAngleRef}
                   />
                 </group>
               )}
@@ -984,14 +993,12 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
           })
         )}
 
-        {/* Crisp 1:1 Floating Drive Prompt */}
+        {/* Minimal Drive Prompt */}
         {isPromptVisible && (
-          <Html position={[0, 1.95, 0]} center zIndexRange={[10, 0]}>
-            <div className="pointer-events-none flex items-center gap-2 rounded-full border border-emerald-400/50 bg-slate-950/88 px-3 py-1 text-[11px] font-semibold text-white shadow-xl backdrop-blur-md whitespace-nowrap">
-              <span className="rounded bg-emerald-500 px-1.5 py-0.5 font-mono-code text-[10px] font-bold text-slate-950">
-                F
-              </span>
-              <span>Drive {spec.name}</span>
+          <Html position={[0, 1.85, 0]} center zIndexRange={[10, 0]}>
+            <div className="pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/65 px-2.5 py-1 text-[11px] font-medium text-white shadow-lg backdrop-blur-xl">
+              <span className="font-mono-code text-[10px] font-bold text-emerald-400">F</span>
+              <span>Drive</span>
             </div>
           </Html>
         )}
@@ -1018,6 +1025,14 @@ function PhysicsVehicle({ spec }: { spec: VehicleSpawnSpec }) {
 
 export function VehicleSystem() {
   const interactTriggerNonce = useWorldStore((s) => s.interactTriggerNonce);
+  const drivingVehicleId = useWorldStore((s) => s.drivingVehicleId);
+  const hornTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!drivingVehicleId) {
+      soundEngine.updateVehicleEngine(false, 0, false);
+    }
+  }, [drivingVehicleId]);
 
   useFrame(() => {
     const store = useWorldStore.getState();
@@ -1084,18 +1099,39 @@ export function VehicleSystem() {
         if (store.drivingVehicleId) {
           store.setHornActive(true);
           soundEngine.playChime('horn');
-          setTimeout(() => useWorldStore.getState().setHornActive(false), 650);
+          if (hornTimeoutRef.current !== null) {
+            window.clearTimeout(hornTimeoutRef.current);
+          }
+          hornTimeoutRef.current = window.setTimeout(() => {
+            useWorldStore.getState().setHornActive(false);
+            hornTimeoutRef.current = null;
+          }, 650);
         }
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      if (hornTimeoutRef.current !== null) {
+        window.clearTimeout(hornTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
     if (interactTriggerNonce === 0) return;
     const store = useWorldStore.getState();
+    if (
+      !store.hasEnteredWorld ||
+      store.activeModalProjectId ||
+      store.isWardrobeOpen ||
+      store.isProjectCreatorOpen ||
+      store.isResumeModalOpen ||
+      store.isDirectoryOpen
+    ) {
+      return;
+    }
     if (store.drivingVehicleId) {
       store.setDrivingVehicleId(null);
       soundEngine.updateVehicleEngine(false, 0, false);

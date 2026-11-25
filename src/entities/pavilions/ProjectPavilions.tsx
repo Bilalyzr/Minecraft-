@@ -11,6 +11,8 @@ import { useWorldStore } from '../../store/useWorldStore';
 import { isTypingInInput } from '../../core/cameraState';
 import { soundEngine } from '../../audio/soundEngine';
 
+const SHARED_TECH_CUBE_GEO = new RoundedBoxGeometry(0.56, 0.56, 0.56, 2, 0.06);
+
 function SinglePavilion({ project }: { project: PortfolioProject }) {
   const nearbyProjectId = useWorldStore((s) => s.nearbyProjectId);
   const timeOfDay = useWorldStore((s) => s.timeOfDay);
@@ -34,13 +36,14 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
 
   const screenHandle = useMemo(() => createProjectScreenHandle(project), [project]);
   useEffect(() => {
+    screenHandle.texture.needsUpdate = true;
     return () => screenHandle.dispose();
   }, [screenHandle]);
 
   const techCubesRef = useRef<THREE.Group>(null);
   const lanternsGroupRef = useRef<THREE.Group>(null);
   const padRingRef = useRef<THREE.Mesh>(null);
-  const cubeGeo = useMemo(() => new RoundedBoxGeometry(0.56, 0.56, 0.56, 2, 0.06), []);
+  const cubeGeo = SHARED_TECH_CUBE_GEO;
 
   useFrame(({ clock, camera }) => {
     const t = clock.getElapsedTime();
@@ -53,7 +56,7 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
       project.position[1] + 6 - camera.position.y,
       project.position[2] - camera.position.z
     );
-    const inFront = toObjHelper.dot(camDirHelper) > 2.5 && toObjHelper.length() < 78;
+    const inFront = toObjHelper.dot(camDirHelper) > 2.5 && toObjHelper.length() < 30;
     if (inFront !== showHeaderLabel) {
       setShowHeaderLabel(inFront);
     }
@@ -104,7 +107,7 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
           ? quartzMaps
           : slateMaps;
 
-  const lanternIntensity = isActive ? 3.8 : timeOfDay === 'night' ? 3.2 : 1.5;
+  const lanternIntensity = isActive ? 3.8 : timeOfDay === 'night' ? 3.2 : 2.1;
 
   return (
     <group position={project.position} rotation={[0, project.rotationY, 0]}>
@@ -302,7 +305,7 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
               <meshStandardMaterial
                 color="#fef08a"
                 emissive="#fbbf24"
-                emissiveIntensity={timeOfDay === 'night' ? 3.6 : 1.75}
+                emissiveIntensity={timeOfDay === 'night' ? 3.6 : 2.3}
               />
             </mesh>
           </group>
@@ -330,6 +333,7 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
           position={[0, 0, 0.21]}
           onClick={(e) => {
             e.stopPropagation();
+            if (e.delta > 5) return;
             openProjectModal(project.id);
           }}
         >
@@ -365,22 +369,22 @@ function SinglePavilion({ project }: { project: PortfolioProject }) {
         </group>
       ))}
 
-      {/* Floating 3D Pavilion Header Plaque (Only shown when in front of camera) */}
+      {/* Minimal Floating 3D Pavilion Pill (Shown within 30m in front of camera) */}
       {showHeaderLabel && (
-        <Html position={[0, 8.35, 1.2]} center zIndexRange={[8, 0]}>
-          <div
+        <Html position={[0, 8.2, 1.2]} center zIndexRange={[8, 0]}>
+          <button
+            type="button"
             onClick={() => openProjectModal(project.id)}
-            className="cursor-pointer select-none whitespace-nowrap rounded-xl border border-white/20 bg-slate-950/80 px-3 py-1 text-center shadow-xl backdrop-blur-md transition-transform hover:scale-105"
+            className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/65 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105"
           >
-            <div
-              className="font-mono-code text-[9px] font-bold tracking-widest uppercase"
+            <span
+              className="font-mono-code text-[10px] font-bold"
               style={{ color: project.accentColor }}
             >
-              {project.chapterNumber ? `${project.chapterNumber} • ` : `#${project.number} • `}
-              {project.category}
-            </div>
-            <div className="font-display text-xs font-bold text-white">{project.title}</div>
-          </div>
+              {project.number}
+            </span>
+            <span className="font-display font-semibold">{project.title}</span>
+          </button>
         </Html>
       )}
 
@@ -465,35 +469,35 @@ export function ProjectPavilions() {
   // Keyboard [Enter] or [E] opens active project's Full Case Study Modal, [N] teleports to Next Story Chapter
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat || isTypingInInput(e)) return;
+      if (e.repeat) return;
       const store = useWorldStore.getState();
       if (!store.hasEnteredWorld) return;
 
-      if (e.code === 'Enter' || e.code === 'KeyE') {
-        if (
-          !store.activeModalProjectId &&
-          !store.isWardrobeOpen &&
-          !store.isProjectCreatorOpen &&
-          !store.isResumeModalOpen &&
-          store.nearbyProjectId
-        ) {
-          store.openProjectModal(store.nearbyProjectId);
-        }
-      } else if (e.code === 'KeyN') {
-        if (
-          !store.activeModalProjectId &&
-          !store.isWardrobeOpen &&
-          !store.isProjectCreatorOpen &&
-          !store.isResumeModalOpen
-        ) {
-          store.teleportToStoryChapter(store.storyChapterIndex + 1);
-        }
-      } else if (e.code === 'Escape') {
+      if (e.code === 'Escape') {
         if (store.activeModalProjectId) store.closeProjectModal();
         if (store.isDirectoryOpen) store.setDirectoryOpen(false);
         if (store.isWardrobeOpen) store.setWardrobeOpen(false);
         if (store.isProjectCreatorOpen) store.closeProjectCreator();
         if (store.isResumeModalOpen) store.setResumeModalOpen(false);
+        if (store.isControlsHelpOpen) store.setControlsHelpOpen(false);
+        return;
+      }
+
+      if (isTypingInInput(e)) return;
+
+      const modalBlocking =
+        Boolean(store.activeModalProjectId) ||
+        store.isWardrobeOpen ||
+        store.isProjectCreatorOpen ||
+        store.isResumeModalOpen ||
+        store.isDirectoryOpen;
+
+      if (modalBlocking) return;
+
+      if ((e.code === 'Enter' || e.code === 'KeyE') && store.nearbyProjectId) {
+        store.openProjectModal(store.nearbyProjectId);
+      } else if (e.code === 'KeyN') {
+        store.teleportToStoryChapter(store.storyChapterIndex + 1);
       }
     };
     window.addEventListener('keydown', onKeyDown);

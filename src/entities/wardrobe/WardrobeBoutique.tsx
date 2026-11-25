@@ -72,7 +72,7 @@ export function WardrobeBoutique() {
       WARDROBE_BOUTIQUE_POS[1] + 5.2 - camera.position.y,
       WARDROBE_BOUTIQUE_POS[2] - camera.position.z
     );
-    const visible = toBoutiqueHelper.dot(camDirHelper) > 2.0 && toBoutiqueHelper.length() < 68;
+    const visible = toBoutiqueHelper.dot(camDirHelper) > 2.0 && toBoutiqueHelper.length() < 26;
     if (visible !== showPlaque) {
       setShowPlaque(visible);
     }
@@ -92,20 +92,27 @@ export function WardrobeBoutique() {
     }
   });
 
-  // Keyboard shortcut [C] opens Wardrobe anywhere, or [Enter]/[E] when standing on Boutique Pad
+  // Keyboard shortcut [C] opens Wardrobe when no other modal is open, or [Enter]/[E] when standing on Boutique Pad
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat || isTypingInInput(e)) return;
       const store = useWorldStore.getState();
       if (!store.hasEnteredWorld) return;
 
+      const otherModalOpen =
+        Boolean(store.activeModalProjectId) ||
+        store.isProjectCreatorOpen ||
+        store.isResumeModalOpen ||
+        store.isDirectoryOpen;
+
+      if (otherModalOpen) return;
+
       if (e.code === 'KeyC') {
         store.setWardrobeOpen(!store.isWardrobeOpen);
       } else if (
         (e.code === 'Enter' || e.code === 'KeyE') &&
         store.isNearWardrobe &&
-        !store.isWardrobeOpen &&
-        !store.activeModalProjectId
+        !store.isWardrobeOpen
       ) {
         store.setWardrobeOpen(true);
       }
@@ -116,7 +123,7 @@ export function WardrobeBoutique() {
 
   const leftPreset = CHARACTER_PRESETS[1].appearance;
   const rightPreset = CHARACTER_PRESETS[3].appearance;
-  const glowIntensity = isNearWardrobe ? 3.2 : timeOfDay === 'night' ? 2.6 : 1.4;
+  const glowIntensity = isNearWardrobe ? 3.2 : timeOfDay === 'night' ? 2.8 : 1.9;
 
   return (
     <group position={WARDROBE_BOUTIQUE_POS} rotation={[0, WARDROBE_BOUTIQUE_ROT_Y, 0]}>
@@ -179,6 +186,7 @@ export function WardrobeBoutique() {
         position={[0, 2.35, -1.35]}
         onClick={(e) => {
           e.stopPropagation();
+          if (e.delta > 5) return;
           setWardrobeOpen(true);
         }}
       >
@@ -262,20 +270,17 @@ export function WardrobeBoutique() {
         </group>
       </group>
 
-      {/* Floating 3D Boutique Header Plaque */}
+      {/* Minimal 3D Boutique Floating Pill */}
       {showPlaque && (
-        <Html position={[0, 6.25, 0.8]} center zIndexRange={[8, 0]}>
-          <div
+        <Html position={[0, 6.1, 0.8]} center zIndexRange={[8, 0]}>
+          <button
+            type="button"
             onClick={() => setWardrobeOpen(true)}
-            className="cursor-pointer select-none whitespace-nowrap rounded-xl border border-pink-400/40 bg-slate-950/85 px-3.5 py-1.5 text-center shadow-2xl backdrop-blur-md transition-transform hover:scale-105"
+            className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/65 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-xl transition-transform hover:scale-105"
           >
-            <div className="font-mono-code text-[9px] font-bold tracking-widest text-pink-400 uppercase">
-              3D WARDROBE & AVATAR SPACE • [KEY C]
-            </div>
-            <div className="font-display text-xs font-bold text-white">
-              Sakura Style & Outfit Atelier
-            </div>
-          </div>
+            <span className="h-2 w-2 rounded-full bg-pink-400" />
+            <span className="font-display font-semibold">Style Atelier</span>
+          </button>
         </Html>
       )}
 

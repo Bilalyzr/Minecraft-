@@ -92,7 +92,7 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
       cur.y + 1.8 - camera.position.y,
       cur.z - camera.position.z
     );
-    const shouldShowTag = toNpcHelper.dot(camDirHelper) > 1.8 && toNpcHelper.length() < 34;
+    const shouldShowTag = toNpcHelper.dot(camDirHelper) > 1.8 && toNpcHelper.length() < 11;
     if (shouldShowTag !== labelInView) {
       setLabelInView(shouldShowTag);
     }
@@ -230,44 +230,39 @@ function AutonomousNPC({ actor, index }: { actor: UnifiedNPCActor; index: number
         isWaving={interactionMode !== 'none'}
       />
 
-      {/* Crisp 1:1 Pixel-Perfect Name Tag or Interactive Speech Bubble When In Front of Camera */}
+      {/* Subtle Name Tag or Compact Speech Bubble Within Close Range */}
       {labelInView &&
         (interactionMode !== 'none' ? (
-          <Html position={[0, 2.32, 0]} center zIndexRange={[10, 0]}>
+          <Html position={[0, 2.28, 0]} center zIndexRange={[10, 0]}>
             <div
               onClick={() => {
                 if (actor.linkedProjectId) openProjectModal(actor.linkedProjectId);
               }}
-              className={`w-56 rounded-xl border border-white/20 bg-slate-950/88 px-3 py-2 text-left shadow-xl backdrop-blur-md transition-all ${
+              className={`w-48 rounded-2xl border border-white/15 bg-slate-950/75 px-3 py-2 text-left shadow-xl backdrop-blur-xl transition-all ${
                 actor.linkedProjectId
-                  ? 'cursor-pointer hover:border-pink-400/60'
+                  ? 'cursor-pointer hover:border-white/35'
                   : 'pointer-events-none'
               }`}
             >
               <div className="mb-0.5 flex items-center justify-between gap-1.5">
-                <span className="font-display text-[11px] font-bold text-white">{actor.name}</span>
+                <span className="font-display text-[11px] font-semibold text-white">{actor.name}</span>
                 <span
-                  className="rounded-full px-1.5 py-0.5 font-mono-code text-[8px] font-semibold"
-                  style={{
-                    backgroundColor: `${actor.accentColor}26`,
-                    color: actor.accentColor,
-                  }}
+                  className="text-[10px] font-medium"
+                  style={{ color: actor.accentColor }}
                 >
                   {actor.role}
                 </span>
               </div>
-              <p className="text-[10px] leading-snug text-slate-200">
+              <p className="line-clamp-3 text-[11px] leading-snug text-slate-200/90">
                 {interactionMode === 'vehicle_yield'
-                  ? `Whoa, sweet ride${visitorName ? `, ${visitorName}` : ''}! Watch the Sakura blossoms on those corners!`
-                  : visitorName
-                    ? `Hi ${visitorName}! ${actor.dialogue}`
-                    : actor.dialogue}
+                  ? `Nice ride${visitorName ? `, ${visitorName}` : ''}! Watch the corners.`
+                  : actor.dialogue}
               </p>
             </div>
           </Html>
         ) : (
-          <Html position={[0, 2.12, 0]} center zIndexRange={[5, 0]}>
-            <div className="pointer-events-none whitespace-nowrap rounded-full border border-white/15 bg-slate-950/65 px-2 py-0.5 text-[9px] font-medium text-slate-200 backdrop-blur-sm">
+          <Html position={[0, 2.1, 0]} center zIndexRange={[5, 0]}>
+            <div className="pointer-events-none whitespace-nowrap rounded-full border border-white/10 bg-slate-950/55 px-2 py-0.5 text-[10px] font-medium text-slate-200 backdrop-blur-md">
               {actor.name}
             </div>
           </Html>

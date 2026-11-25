@@ -15,6 +15,7 @@ export function PlayerController() {
   const speedRef = useRef(0);
   const headingRef = useRef(0);
   const jumpCooldownRef = useRef(0);
+  const lastTeleportNonceRef = useRef<number | null>(null);
 
   const [isSprinting, setIsSprinting] = useState(false);
   const [isJumping, setIsJumping] = useState(false);
@@ -24,7 +25,6 @@ export function PlayerController() {
   const teleportRequest = useWorldStore((s) => s.teleportRequest);
   const characterAppearance = useWorldStore((s) => s.characterAppearance);
   const visitorName = useWorldStore((s) => s.visitorName);
-  const visitorRole = useWorldStore((s) => s.visitorRole);
   const hasEnteredWorld = useWorldStore((s) => s.hasEnteredWorld);
   const activeModalProjectId = useWorldStore((s) => s.activeModalProjectId);
   const isWardrobeOpen = useWorldStore((s) => s.isWardrobeOpen);
@@ -40,28 +40,7 @@ export function PlayerController() {
     isResumeModalOpen ||
     isDirectoryOpen;
 
-  // Handle Fast-Travel / Minimap Teleport Requests
-  useEffect(() => {
-    if (!teleportRequest || !bodyRef.current) return;
-    const [tx, ty, tz] = teleportRequest.position;
-    bodyRef.current.setGravityScale(1, true);
-    bodyRef.current.setTranslation({ x: tx, y: ty + 1.15, z: tz }, true);
-    bodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
-
-    if (teleportRequest.lookAt) {
-      const dx = teleportRequest.lookAt[0] - tx;
-      const dz = teleportRequest.lookAt[2] - tz;
-      const angle = Math.atan2(-dx, -dz);
-      headingRef.current = angle;
-      cameraState.azimuth = angle;
-      if (visualGroupRef.current) {
-        visualGroupRef.current.rotation.y = angle;
-      }
-    }
-    soundEngine.playChime('teleport');
-  }, [teleportRequest]);
-
-  // Toggle gravity & place capsule cleanly beside the driver door when dismounting
+  // Toggle gravity & place capsule cleanly beside the driver door when dismounting (unless teleporting)
   const prevDrivingRef = useRef(drivingVehicleId);
   useEffect(() => {
     const rb = bodyRef.current;
@@ -72,24 +51,57 @@ export function PlayerController() {
       rb.setLinvel({ x: 0, y: 0, z: 0 }, false);
     } else if (prevDrivingRef.current && !drivingVehicleId) {
       rb.setGravityScale(1, true);
-      const state = useWorldStore.getState();
-      const vPos = state.vehiclePositions[prevDrivingRef.current];
-      const yaw = state.playerHeading;
-      const leftX = -Math.cos(yaw);
-      const leftZ = Math.sin(yaw);
-      const dismountDist = prevDrivingRef.current === 'scooter' ? 1.55 : 2.35;
-      const dismountX = THREE.MathUtils.clamp(vPos[0] + leftX * dismountDist, -108, 108);
-      const dismountY = Math.max(1.25, vPos[1] + 0.85);
-      const dismountZ = THREE.MathUtils.clamp(vPos[2] + leftZ * dismountDist, -108, 108);
-      rb.setTranslation({ x: dismountX, y: dismountY, z: dismountZ }, true);
-      rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
-      headingRef.current = yaw;
-      if (visualGroupRef.current) {
-        visualGroupRef.current.rotation.y = yaw;
+      soundEngine.updateVehicleEngine(false, 0, false);
+
+      const pendingTeleportNonce = useWorldStore.getState().teleportRequest?.nonce ?? null;
+      const isTeleportingNow = pendingTeleportNonce !== lastTeleportNonceRef.current;
+
+      if (!isTeleportingNow) {
+        const state = useWorldStore.getState();
+        const vPos = state.vehiclePositions[prevDrivingRef.current];
+        const yaw = state.playerHeading;
+        const leftX = -Math.cos(yaw);
+        const leftZ = Math.sin(yaw);
+        const dismountDist = prevDrivingRef.current === 'scooter' ? 1.55 : 2.35;
+        const dismountX = THREE.MathUtils.clamp(vPos[0] + leftX * dismountDist, -94, 94);
+        const dismountY = Math.max(1.25, vPos[1] + 0.85);
+        const dismountZ = THREE.MathUtils.clamp(vPos[2] + leftZ * dismountDist, -94, 94);
+        rb.setTranslation({ x: dismountX, y: dismountY, z: dismountZ }, true);
+        rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        headingRef.current = yaw;
+        if (visualGroupRef.current) {
+          visualGroupRef.current.rotation.y = yaw;
+        }
       }
     }
     prevDrivingRef.current = drivingVehicleId;
   }, [drivingVehicleId]);
+
+  // Handle Fast-Travel / Minimap Teleport Requests (runs after dismount effect)
+  useEffect(() => {
+    if (!teleportRequest || !bodyRef.current) return;
+    lastTeleportNonceRef.current = teleportRequest.nonce;
+
+    const [tx, ty, tz] = teleportRequest.position;
+    bodyRef.current.setGravityScale(1, true);
+    bodyRef.current.setTranslation({ x: tx, y: ty + 1.15, z: tz }, true);
+    bodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+
+    if (teleportRequest.lookAt) {
+      const dx = teleportRequest.lookAt[0] - tx;
+      const dz = teleportRequest.lookAt[2] - tz;
+      if (Math.hypot(dx, dz) > 0.001) {
+        const angle = Math.atan2(-dx, -dz);
+        headingRef.current = angle;
+        cameraState.azimuth = angle;
+        if (visualGroupRef.current) {
+          visualGroupRef.current.rotation.y = angle;
+        }
+      }
+    }
+    useWorldStore.getState().updatePlayerTransform([tx, ty + 0.25, tz], headingRef.current);
+    soundEngine.playChime('teleport');
+  }, [teleportRequest]);
 
   useFrame((_, delta) => {
     const rb = bodyRef.current;
@@ -289,17 +301,12 @@ export function PlayerController() {
           isWaving={isWaving}
         />
 
-        {/* Visitor Name & Role Tag Above Player Character */}
+        {/* Clean Minimal Visitor Nameplate */}
         {!anyModalOpen && visitorName && (
-          <Html position={[0, 2.24, 0]} center zIndexRange={[5, 0]}>
-            <div className="pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-pink-400/40 bg-slate-950/80 px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-lg backdrop-blur-md">
+          <Html position={[0, 2.2, 0]} center zIndexRange={[5, 0]}>
+            <div className="pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/60 px-2.5 py-0.5 text-[10px] font-medium text-white shadow-md backdrop-blur-md">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               <span>{visitorName}</span>
-              {visitorRole && (
-                <span className="rounded bg-white/10 px-1 py-0.2 font-mono-code text-[8px] text-pink-300">
-                  {visitorRole}
-                </span>
-              )}
             </div>
           </Html>
         )}

@@ -376,6 +376,7 @@ export function SpringFoliage() {
       }
       grassRef.current.count = placed;
       grassRef.current.instanceMatrix.needsUpdate = true;
+      grassRef.current.computeBoundingSphere();
     }
 
     if (flowerStemRef.current && flowerHeadRef.current) {
@@ -421,8 +422,10 @@ export function SpringFoliage() {
       }
       flowerStemRef.current.count = placed;
       flowerStemRef.current.instanceMatrix.needsUpdate = true;
+      flowerStemRef.current.computeBoundingSphere();
       flowerHeadRef.current.count = placed;
       flowerHeadRef.current.instanceMatrix.needsUpdate = true;
+      flowerHeadRef.current.computeBoundingSphere();
       if (flowerHeadRef.current.instanceColor) flowerHeadRef.current.instanceColor.needsUpdate = true;
     }
 
@@ -442,6 +445,7 @@ export function SpringFoliage() {
       });
       petalCarpetRef.current.count = pIdx;
       petalCarpetRef.current.instanceMatrix.needsUpdate = true;
+      petalCarpetRef.current.computeBoundingSphere();
     }
 
     // Flowering Azalea Bushes
@@ -455,6 +459,7 @@ export function SpringFoliage() {
       });
       azaleaRef.current.count = azaleaBushes.length;
       azaleaRef.current.instanceMatrix.needsUpdate = true;
+      azaleaRef.current.computeBoundingSphere();
     }
 
     // Riverside Sugar Cane / Emerald Reeds Along Both Sandy Riverbanks
@@ -473,6 +478,7 @@ export function SpringFoliage() {
       }
       reedRef.current.count = rIdx;
       reedRef.current.instanceMatrix.needsUpdate = true;
+      reedRef.current.computeBoundingSphere();
     }
   }, [grassCount, flowerCount, sakuraTrees, azaleaBushes]);
 
@@ -539,8 +545,10 @@ export function SpringFoliage() {
 
       sakuraTrunkRef.current.count = tIdx;
       sakuraTrunkRef.current.instanceMatrix.needsUpdate = true;
+      sakuraTrunkRef.current.computeBoundingSphere();
       sakuraCanopyRef.current.count = cIdx;
       sakuraCanopyRef.current.instanceMatrix.needsUpdate = true;
+      sakuraCanopyRef.current.computeBoundingSphere();
     }
 
     // 2. White Birch Trees
@@ -567,8 +575,10 @@ export function SpringFoliage() {
       });
       birchTrunkRef.current.count = birchTrees.length;
       birchTrunkRef.current.instanceMatrix.needsUpdate = true;
+      birchTrunkRef.current.computeBoundingSphere();
       birchCanopyRef.current.count = cIdx;
       birchCanopyRef.current.instanceMatrix.needsUpdate = true;
+      birchCanopyRef.current.computeBoundingSphere();
     }
 
     // 3. Lush Spring Oak Trees
@@ -594,8 +604,10 @@ export function SpringFoliage() {
       });
       oakTrunkRef.current.count = oakTrees.length;
       oakTrunkRef.current.instanceMatrix.needsUpdate = true;
+      oakTrunkRef.current.computeBoundingSphere();
       oakCanopyRef.current.count = cIdx;
       oakCanopyRef.current.instanceMatrix.needsUpdate = true;
+      oakCanopyRef.current.computeBoundingSphere();
     }
   }, [sakuraTrees, birchTrees, oakTrees]);
 
@@ -608,8 +620,15 @@ export function SpringFoliage() {
     grassUniforms.uKartPos.value.set(...state.vehiclePositions.kart);
     grassUniforms.uScooterPos.value.set(...state.vehiclePositions.scooter);
 
-    grassUniforms.uLightScale.value =
-      timeOfDay === 'night' ? 0.36 : timeOfDay === 'sunset' ? 0.92 : 1.06;
+    if (timeOfDay === 'night') {
+      grassUniforms.uRootColor.value.set('#14532d');
+      grassUniforms.uTipColor.value.set('#34d399');
+      grassUniforms.uLightScale.value = 0.48;
+    } else {
+      grassUniforms.uRootColor.value.set('#288c28');
+      grassUniforms.uTipColor.value.set('#b7e84b');
+      grassUniforms.uLightScale.value = 0.98;
+    }
 
     // Animate Buzzing Minecraft Bees in gentle figure-8 orbits
     if (beesGroupRef.current) {
@@ -630,7 +649,7 @@ export function SpringFoliage() {
     }
   });
 
-  const lanternEmissive = timeOfDay === 'night' ? 3.2 : timeOfDay === 'sunset' ? 2.2 : 0.95;
+  const lanternEmissive = timeOfDay === 'night' ? 3.4 : 2.3;
   const allColliderTrees = useMemo(
     () => [...sakuraTrees, ...birchTrees, ...oakTrees],
     [sakuraTrees, birchTrees, oakTrees]
@@ -649,10 +668,19 @@ export function SpringFoliage() {
       </instancedMesh>
 
       {/* Multi-Species 3D Spring Flowers (Green Stems + Colorful Blossom Heads) */}
-      <instancedMesh ref={flowerStemRef} args={[voxelGeo, undefined, flowerCount]}>
+      <instancedMesh
+        ref={flowerStemRef}
+        args={[voxelGeo, undefined, flowerCount]}
+        frustumCulled={false}
+      >
         <meshStandardMaterial color="#22c55e" roughness={0.6} />
       </instancedMesh>
-      <instancedMesh ref={flowerHeadRef} args={[voxelGeo, undefined, flowerCount]} castShadow>
+      <instancedMesh
+        ref={flowerHeadRef}
+        args={[voxelGeo, undefined, flowerCount]}
+        frustumCulled={false}
+        castShadow
+      >
         <meshStandardMaterial roughness={0.4} />
       </instancedMesh>
 
@@ -660,6 +688,7 @@ export function SpringFoliage() {
       <instancedMesh
         ref={petalCarpetRef}
         args={[voxelGeo, undefined, sakuraTrees.length * 14]}
+        frustumCulled={false}
         receiveShadow
       >
         <meshStandardMaterial color="#f9a8d4" roughness={0.48} />
@@ -669,6 +698,7 @@ export function SpringFoliage() {
       <instancedMesh
         ref={azaleaRef}
         args={[voxelGeo, undefined, azaleaBushes.length]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >
@@ -676,7 +706,7 @@ export function SpringFoliage() {
       </instancedMesh>
 
       {/* Riverside Sugar Cane / Reeds */}
-      <instancedMesh ref={reedRef} args={[voxelGeo, undefined, 45]} castShadow>
+      <instancedMesh ref={reedRef} args={[voxelGeo, undefined, 45]} frustumCulled={false} castShadow>
         <meshStandardMaterial color="#4ade80" roughness={0.5} />
       </instancedMesh>
 
@@ -684,6 +714,7 @@ export function SpringFoliage() {
       <instancedMesh
         ref={sakuraTrunkRef}
         args={[voxelGeo, undefined, sakuraTrees.length * 3]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >
@@ -692,13 +723,14 @@ export function SpringFoliage() {
       <instancedMesh
         ref={sakuraCanopyRef}
         args={[voxelGeo, undefined, sakuraTrees.length * 5]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >
         <meshStandardMaterial
           {...blossomMaps}
           emissive="#f472b6"
-          emissiveIntensity={timeOfDay === 'sunset' ? 0.22 : 0.1}
+          emissiveIntensity={timeOfDay === 'night' ? 0.16 : 0.24}
         />
       </instancedMesh>
 
@@ -706,6 +738,7 @@ export function SpringFoliage() {
       <instancedMesh
         ref={birchTrunkRef}
         args={[voxelGeo, undefined, birchTrees.length]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >
@@ -714,6 +747,7 @@ export function SpringFoliage() {
       <instancedMesh
         ref={birchCanopyRef}
         args={[voxelGeo, undefined, birchTrees.length * 2]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >
@@ -724,6 +758,7 @@ export function SpringFoliage() {
       <instancedMesh
         ref={oakTrunkRef}
         args={[voxelGeo, undefined, oakTrees.length]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >
@@ -732,6 +767,7 @@ export function SpringFoliage() {
       <instancedMesh
         ref={oakCanopyRef}
         args={[voxelGeo, undefined, oakTrees.length * 2]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >

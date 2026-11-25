@@ -75,7 +75,7 @@ export function SakuraParticles() {
       <meshStandardMaterial
         color={isNight ? '#fde047' : '#fbcfe8'}
         emissive={isNight ? '#facc15' : '#f472b6'}
-        emissiveIntensity={isNight ? 2.4 : 0.45}
+        emissiveIntensity={isNight ? 2.6 : 0.65}
         roughness={0.35}
       />
     </instancedMesh>

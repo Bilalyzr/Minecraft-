@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { VehicleId } from '../config/world.config';
+import { WORLD_BRIDGES, type VehicleId } from '../config/world.config';
 import {
   CHARACTER_PRESETS,
   type CharacterAppearance,
@@ -9,9 +9,16 @@ import {
   PORTFOLIO_PROJECTS,
   type PortfolioProject,
 } from '../config/projects.config';
+import {
+  normalizeHexColor,
+  sanitizeAppearance,
+  sanitizeHttpUrl,
+  sanitizeProjectList,
+  sanitizeVisitedIds,
+} from '../utils/validation';
 
 export type { VehicleId };
-export type TimeOfDay = 'morning' | 'sunset' | 'night';
+export type TimeOfDay = 'evening' | 'night';
 export type QualityTier = 'ultra' | 'balanced' | 'performance';
 
 export interface TeleportRequest {
@@ -48,8 +55,7 @@ function loadInitialAppearance(): CharacterAppearance {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEYS.CHARACTER);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<CharacterAppearance>;
-      return { ...CHARACTER_PRESETS[0].appearance, ...parsed };
+      return sanitizeAppearance(JSON.parse(raw));
     }
   } catch {
     // ignore storage errors
@@ -62,10 +68,7 @@ function loadInitialProjects(): PortfolioProject[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEYS.PROJECTS);
     if (raw) {
-      const parsed = JSON.parse(raw) as PortfolioProject[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
+      return sanitizeProjectList(JSON.parse(raw));
     }
   } catch {
     // ignore storage errors
@@ -85,24 +88,33 @@ function saveProjectsToStorage(projects: PortfolioProject[]) {
 function loadInitialString(key: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
   try {
-    return window.localStorage.getItem(key) ?? fallback;
+    const val = window.localStorage.getItem(key);
+    return typeof val === 'string' ? val.slice(0, 80) : fallback;
   } catch {
     return fallback;
   }
 }
 
-function loadVisitedChapters(): string[] {
+function loadVisitedChapters(projects: PortfolioProject[]): string[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEYS.VISITED);
     if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      return sanitizeVisitedIds(JSON.parse(raw), projects);
     }
   } catch {
     // ignore
   }
   return [];
+}
+
+function saveVisitedToStorage(visited: string[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(STORAGE_KEYS.VISITED, JSON.stringify(visited));
+  } catch {
+    // ignore
+  }
 }
 
 const ROMAN_NUMERALS = [
@@ -122,6 +134,42 @@ const ROMAN_NUMERALS = [
   'XIV',
   'XV',
 ];
+
+function findFreePavilionSlot(existingProjects: PortfolioProject[]): {
+  position: [number, number, number];
+  rotationY: number;
+  districtName: string;
+} {
+  const isOccupied = (pos: [number, number, number]) =>
+    existingProjects.some(
+      (p) => Math.hypot(p.position[0] - pos[0], p.position[2] - pos[2]) < 14
+    );
+
+  for (const slot of CUSTOM_PAVILION_SLOTS) {
+    if (!isOccupied(slot.position)) {
+      return slot;
+    }
+  }
+
+  // Fallback outer perimeter placements if all 7 curated slots are occupied
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * Math.PI * 2 + 0.25;
+    const radius = 72;
+    const x = Math.round(Math.cos(angle) * radius);
+    const z = Math.round(Math.sin(angle) * radius);
+    if (z > 24 && z < 48) continue; // keep clear of river
+    const candidate: [number, number, number] = [x, 0, z];
+    if (!isOccupied(candidate)) {
+      return {
+        position: candidate,
+        rotationY: Math.atan2(-x, -z),
+        districtName: 'Outer Valley Blossom Ring',
+      };
+    }
+  }
+
+  return CUSTOM_PAVILION_SLOTS[0];
+}
 
 interface WorldStoreState {
   isWorldReady: boolean;
@@ -225,7 +273,8 @@ interface WorldStoreState {
   triggerInteract: () => void;
 }
 
-const TIME_ORDER: TimeOfDay[] = ['morning', 'sunset', 'night'];
+const TIME_ORDER: TimeOfDay[] = ['evening', 'night'];
+const INITIAL_PROJECTS = loadInitialProjects();
 
 export const useWorldStore = create<WorldStoreState>((set, get) => ({
   isWorldReady: false,
@@ -240,20 +289,21 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   isNearWardrobe: false,
 
   setVisitorIdentity: (visitorName, visitorRole) => {
-    const nextRole = visitorRole ?? get().visitorRole;
+    const cleanName = visitorName.slice(0, 48);
+    const nextRole = (visitorRole ?? get().visitorRole).slice(0, 40);
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage.setItem(STORAGE_KEYS.VISITOR_NAME, visitorName);
+        window.localStorage.setItem(STORAGE_KEYS.VISITOR_NAME, cleanName);
         window.localStorage.setItem(STORAGE_KEYS.VISITOR_ROLE, nextRole);
       } catch {
         // ignore
       }
     }
-    set({ visitorName, visitorRole: nextRole });
+    set({ visitorName: cleanName, visitorRole: nextRole });
   },
 
   setCharacterAppearance: (updates) => {
-    const next = { ...get().characterAppearance, ...updates };
+    const next = sanitizeAppearance({ ...get().characterAppearance, ...updates });
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEYS.CHARACTER, JSON.stringify(next));
@@ -279,36 +329,40 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   },
 
   completeVisitorOnboarding: (name, role, appearance) => {
-    const cleanName = name.trim() || 'Guest Explorer';
+    const cleanName = name.trim().slice(0, 48) || 'Guest Explorer';
+    const cleanRole = role.trim().slice(0, 40) || 'Guest Explorer';
+    const cleanAppearance = sanitizeAppearance(appearance);
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(STORAGE_KEYS.VISITOR_NAME, cleanName);
-        window.localStorage.setItem(STORAGE_KEYS.VISITOR_ROLE, role);
-        window.localStorage.setItem(STORAGE_KEYS.CHARACTER, JSON.stringify(appearance));
+        window.localStorage.setItem(STORAGE_KEYS.VISITOR_ROLE, cleanRole);
+        window.localStorage.setItem(STORAGE_KEYS.CHARACTER, JSON.stringify(cleanAppearance));
       } catch {
         // ignore
       }
     }
     set({
       visitorName: cleanName,
-      visitorRole: role,
-      characterAppearance: appearance,
+      visitorRole: cleanRole,
+      characterAppearance: cleanAppearance,
       hasEnteredWorld: true,
       isWardrobeOpen: false,
     });
   },
 
   setWardrobeOpen: (open) =>
-    set({
+    set((state) => ({
       isWardrobeOpen: open,
-      activeModalProjectId: open ? null : get().activeModalProjectId,
-      isDirectoryOpen: open ? false : get().isDirectoryOpen,
-    }),
+      activeModalProjectId: open ? null : state.activeModalProjectId,
+      isDirectoryOpen: open ? false : state.isDirectoryOpen,
+      isProjectCreatorOpen: open ? false : state.isProjectCreatorOpen,
+      isResumeModalOpen: open ? false : state.isResumeModalOpen,
+    })),
 
   setNearWardrobe: (near) => set({ isNearWardrobe: near }),
 
   // Dynamic & Manually Stored Portfolio Projects
-  projects: loadInitialProjects(),
+  projects: INITIAL_PROJECTS,
   isProjectCreatorOpen: false,
   editingProjectId: null,
 
@@ -334,11 +388,28 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
       ? current.findIndex((p) => p.id === projectData.id)
       : -1;
 
+    const safeLiveUrl =
+      sanitizeHttpUrl(projectData.liveUrl, 'https://github.com/MohammedBilalA')!;
+    const safeRepoUrl =
+      sanitizeHttpUrl(projectData.repoUrl, 'https://github.com/MohammedBilalA')!;
+    const safeAccent = normalizeHexColor(projectData.accentColor, '#38bdf8');
+    const safeSecondary = normalizeHexColor(projectData.secondaryColor, '#ec4899');
+
     if (existingIndex >= 0) {
       const existing = current[existingIndex];
       const updated: PortfolioProject = {
         ...existing,
         ...projectData,
+        accentColor: safeAccent,
+        secondaryColor: safeSecondary,
+        liveUrl: safeLiveUrl,
+        repoUrl: safeRepoUrl,
+        npcGuide: {
+          ...projectData.npcGuide,
+          jacketColor: normalizeHexColor(projectData.npcGuide.jacketColor, safeAccent),
+          pantsColor: normalizeHexColor(projectData.npcGuide.pantsColor, '#1e293b'),
+          hairColor: normalizeHexColor(projectData.npcGuide.hairColor, '#18181b'),
+        },
         id: existing.id,
         number: existing.number,
         position: projectData.position ?? existing.position,
@@ -354,13 +425,20 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
     const nextIndex = current.length;
     const numStr = String(nextIndex + 1).padStart(2, '0');
     const roman = ROMAN_NUMERALS[nextIndex] ?? String(nextIndex + 1);
-    const customCount = Math.max(0, nextIndex - PORTFOLIO_PROJECTS.length);
-    const slot =
-      CUSTOM_PAVILION_SLOTS[customCount % CUSTOM_PAVILION_SLOTS.length] ??
-      CUSTOM_PAVILION_SLOTS[0];
+    const slot = findFreePavilionSlot(current);
 
     const newProject: PortfolioProject = {
       ...projectData,
+      accentColor: safeAccent,
+      secondaryColor: safeSecondary,
+      liveUrl: safeLiveUrl,
+      repoUrl: safeRepoUrl,
+      npcGuide: {
+        ...projectData.npcGuide,
+        jacketColor: normalizeHexColor(projectData.npcGuide.jacketColor, safeAccent),
+        pantsColor: normalizeHexColor(projectData.npcGuide.pantsColor, '#1e293b'),
+        hairColor: normalizeHexColor(projectData.npcGuide.hairColor, '#18181b'),
+      },
       id: projectData.id || `custom-proj-${Date.now()}`,
       number: numStr,
       chapterNumber: projectData.chapterNumber || `Chapter ${roman}`,
@@ -387,17 +465,27 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   },
 
   deleteProject: (id) => {
-    const filtered = get()
-      .projects.filter((p) => p.id !== id)
+    const state = get();
+    const filtered = state.projects
+      .filter((p) => p.id !== id)
       .map((proj, idx) => ({
         ...proj,
         number: String(idx + 1).padStart(2, '0'),
       }));
     const finalProjects = filtered.length > 0 ? filtered : PORTFOLIO_PROJECTS;
+    const nextVisited = sanitizeVisitedIds(state.visitedProjectIds, finalProjects);
+
     saveProjectsToStorage(finalProjects);
+    saveVisitedToStorage(nextVisited);
+
     set({
       projects: finalProjects,
-      activeModalProjectId: get().activeModalProjectId === id ? null : get().activeModalProjectId,
+      visitedProjectIds: nextVisited,
+      storyChapterIndex: Math.min(state.storyChapterIndex, finalProjects.length - 1),
+      nearbyProjectId: state.nearbyProjectId === id ? null : state.nearbyProjectId,
+      activeModalProjectId: state.activeModalProjectId === id ? null : state.activeModalProjectId,
+      editingProjectId: state.editingProjectId === id ? null : state.editingProjectId,
+      isProjectCreatorOpen: state.editingProjectId === id ? false : state.isProjectCreatorOpen,
     });
   },
 
@@ -409,30 +497,31 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
         // ignore
       }
     }
+    const nextVisited = sanitizeVisitedIds(get().visitedProjectIds, PORTFOLIO_PROJECTS);
+    saveVisitedToStorage(nextVisited);
     set({
       projects: PORTFOLIO_PROJECTS,
+      visitedProjectIds: nextVisited,
       storyChapterIndex: 0,
+      nearbyProjectId: null,
+      activeModalProjectId: null,
+      editingProjectId: null,
     });
   },
 
   // Storytelling Quest & Resume Modal State
   storyChapterIndex: 0,
-  visitedProjectIds: loadVisitedChapters(),
+  visitedProjectIds: loadVisitedChapters(INITIAL_PROJECTS),
   isResumeModalOpen: false,
 
   setStoryChapterIndex: (storyChapterIndex) => set({ storyChapterIndex }),
 
   markProjectVisited: (id) => {
-    const cur = get().visitedProjectIds;
-    if (cur.includes(id)) return;
-    const next = [...cur, id];
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(STORAGE_KEYS.VISITED, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
-    }
+    const state = get();
+    if (!state.projects.some((p) => p.id === id)) return;
+    if (state.visitedProjectIds.includes(id)) return;
+    const next = [...state.visitedProjectIds, id];
+    saveVisitedToStorage(next);
     set({ visitedProjectIds: next });
   },
 
@@ -447,9 +536,12 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
     set({
       storyChapterIndex: safeIdx,
       drivingVehicleId: null,
+      vehicleSpeedKmh: 0,
+      isBoosting: false,
       activeModalProjectId: null,
       isDirectoryOpen: false,
       isWardrobeOpen: false,
+      isProjectCreatorOpen: false,
       isResumeModalOpen: false,
       teleportRequest: {
         position: [padX, 0.25, padZ],
@@ -460,14 +552,15 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   },
 
   setResumeModalOpen: (open) =>
-    set({
+    set((state) => ({
       isResumeModalOpen: open,
-      activeModalProjectId: open ? null : get().activeModalProjectId,
-      isDirectoryOpen: open ? false : get().isDirectoryOpen,
-      isWardrobeOpen: open ? false : get().isWardrobeOpen,
-    }),
+      activeModalProjectId: open ? null : state.activeModalProjectId,
+      isDirectoryOpen: open ? false : state.isDirectoryOpen,
+      isWardrobeOpen: open ? false : state.isWardrobeOpen,
+      isProjectCreatorOpen: open ? false : state.isProjectCreatorOpen,
+    })),
 
-  timeOfDay: 'morning',
+  timeOfDay: 'evening',
   setTimeOfDay: (timeOfDay) => set({ timeOfDay }),
   cycleTimeOfDay: () => {
     const idx = TIME_ORDER.indexOf(get().timeOfDay);
@@ -544,17 +637,21 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   },
   closeProjectModal: () => set({ activeModalProjectId: null }),
   setDirectoryOpen: (open) =>
-    set({
+    set((state) => ({
       isDirectoryOpen: open,
-      activeModalProjectId: open ? null : get().activeModalProjectId,
-      isWardrobeOpen: open ? false : get().isWardrobeOpen,
-    }),
+      activeModalProjectId: open ? null : state.activeModalProjectId,
+      isWardrobeOpen: open ? false : state.isWardrobeOpen,
+      isProjectCreatorOpen: open ? false : state.isProjectCreatorOpen,
+      isResumeModalOpen: open ? false : state.isResumeModalOpen,
+    })),
   setControlsHelpOpen: (open) => set({ isControlsHelpOpen: open }),
 
   teleportRequest: null,
   requestTeleport: (position, lookAt) =>
     set({
       drivingVehicleId: null,
+      vehicleSpeedKmh: 0,
+      isBoosting: false,
       activeModalProjectId: null,
       isDirectoryOpen: false,
       isWardrobeOpen: false,
@@ -574,11 +671,16 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
     const vehicleId: VehicleId = preferredId ?? 'rover';
     const [px, py, pz] = state.playerPosition;
     const heading = state.playerHeading;
-    const spawnX = Math.max(-110, Math.min(110, px + Math.cos(heading) * 3.6));
-    let spawnZ = Math.max(-110, Math.min(110, pz - Math.sin(heading) * 3.6));
-    if (spawnZ > 30.2 && spawnZ < 42.8) {
+
+    // Spawn 3.6m directly in front of player (-sin(heading), -cos(heading)), safely inside ±96m bounds
+    const spawnX = Math.max(-92, Math.min(92, px - Math.sin(heading) * 3.6));
+    let spawnZ = Math.max(-92, Math.min(92, pz - Math.cos(heading) * 3.6));
+
+    const onBridge = WORLD_BRIDGES.some((b) => Math.abs(spawnX - b.x) < b.width * 0.42);
+    if (!onBridge && spawnZ > 30.2 && spawnZ < 42.8) {
       spawnZ = spawnZ < 36.5 ? 29.0 : 44.0;
     }
+
     set({
       summonRequest: {
         vehicleId,
@@ -609,6 +711,6 @@ export const useWorldStore = create<WorldStoreState>((set, get) => ({
   triggerInteract: () => set((s) => ({ interactTriggerNonce: s.interactTriggerNonce + 1 })),
 }));
 
-if (import.meta.env.DEV && typeof window !== 'undefined') {
+if (import.meta.env?.DEV && typeof window !== 'undefined') {
   (window as unknown as Record<string, unknown>).__WORLD_STORE__ = useWorldStore;
 }

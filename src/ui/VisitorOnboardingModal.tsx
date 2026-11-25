@@ -259,7 +259,9 @@ export function VisitorOnboardingModal() {
 
   useEffect(() => {
     setNameInput(storedName);
-  }, [storedName]);
+    setRoleInput(storedRole || 'Tech Recruiter');
+    setNameError(false);
+  }, [storedName, storedRole, isWardrobeOpen]);
 
   if (!isWorldReady) return null;
   const isOpen = !hasEnteredWorld || isWardrobeOpen;
@@ -317,20 +319,16 @@ export function VisitorOnboardingModal() {
         <div className="flex items-start justify-between border-b border-white/10 px-6 py-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full border border-pink-400/40 bg-pink-500/15 px-2.5 py-0.5 font-mono-code text-[10px] font-bold text-pink-300 uppercase">
-                <Sparkles className="h-3 w-3" />
-                {isInitialGate
-                  ? 'VISITOR PORTAL & CHARACTER SELECTION'
-                  : 'SAKURA STYLE ATELIER • 3D WARDROBE STUDIO'}
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-pink-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                {isInitialGate ? 'Welcome Explorer' : 'Style Atelier'}
               </span>
-              <span className="hidden font-mono-code text-[11px] text-slate-400 sm:inline">
-                {DEVELOPER_PROFILE.name} — 3D Storytelling Portfolio
+              <span className="hidden text-xs text-slate-400 sm:inline">
+                · {DEVELOPER_PROFILE.name}
               </span>
             </div>
-            <h2 className="mt-1 font-display text-xl font-bold text-white sm:text-2xl">
-              {isInitialGate
-                ? 'Enter Your Name & Customize Your 3D Explorer'
-                : 'Change Character Style, Headgear & Outfit'}
+            <h2 className="mt-0.5 font-display text-xl font-bold text-white sm:text-2xl">
+              {isInitialGate ? 'Choose Your Avatar' : 'Customize Character & Outfit'}
             </h2>
           </div>
 
@@ -356,8 +354,8 @@ export function VisitorOnboardingModal() {
 
             {/* Visitor Name & Role Inputs */}
             <div className="rounded-2xl border border-white/12 bg-slate-950/75 p-4">
-              <label className="block font-mono-code text-[11px] font-bold tracking-wider text-pink-300 uppercase">
-                1. Visitor Name <span className="text-rose-400">*</span>
+              <label className="block text-xs font-semibold text-pink-300">
+                Your Name <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
@@ -369,7 +367,7 @@ export function VisitorOnboardingModal() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleConfirm();
                 }}
-                placeholder="Enter your name to enter the world..."
+                placeholder="Enter your name..."
                 className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm font-medium text-white placeholder-slate-500 transition outline-none ${
                   nameError
                     ? 'border-rose-500 bg-rose-950/30 ring-2 ring-rose-500/30'
@@ -378,12 +376,12 @@ export function VisitorOnboardingModal() {
               />
               {nameError && (
                 <p className="mt-1 text-[11px] font-medium text-rose-400">
-                  Please enter your name before entering the 3D portfolio world.
+                  Please enter your name to continue.
                 </p>
               )}
 
-              <label className="mt-3 block font-mono-code text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                Visitor Title / Role Badge
+              <label className="mt-3 block text-xs font-medium text-slate-400">
+                Role
               </label>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {VISITOR_ROLES.map((role) => (
@@ -420,7 +418,7 @@ export function VisitorOnboardingModal() {
                     }`}
                   >
                     <Crown className="h-3.5 w-3.5" />
-                    <span>2. Select Character</span>
+                    <span>Archetype</span>
                   </button>
                   <button
                     type="button"
@@ -432,7 +430,7 @@ export function VisitorOnboardingModal() {
                     }`}
                   >
                     <Shirt className="h-3.5 w-3.5" />
-                    <span>3. Outfit & Gear</span>
+                    <span>Outfit</span>
                   </button>
                   <button
                     type="button"
@@ -444,7 +442,7 @@ export function VisitorOnboardingModal() {
                     }`}
                   >
                     <Palette className="h-3.5 w-3.5" />
-                    <span>4. Colors</span>
+                    <span>Palette</span>
                   </button>
                 </div>
 

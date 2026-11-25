@@ -40,7 +40,7 @@ export function Experience() {
     <Canvas
       shadows
       dpr={dpr}
-      camera={{ position: [0, 5.5, 19], fov: 50, near: 0.25, far: 380 }}
+      camera={{ position: [0, 5.5, 19], fov: 50, near: 0.25, far: 600 }}
       gl={{
         antialias: qualityTier !== 'performance',
         powerPreference: 'high-performance',

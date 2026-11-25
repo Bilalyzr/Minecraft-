@@ -27,7 +27,7 @@ interface BlockInstance {
 
 export function Terrain() {
   const timeOfDay = useWorldStore((s) => s.timeOfDay);
-  const lanternGlow = timeOfDay === 'night' ? 3.5 : timeOfDay === 'sunset' ? 2.4 : 1.15;
+  const lanternGlow = timeOfDay === 'night' ? 3.5 : 2.3;
 
   const windmillBladesRef = useRef<THREE.Group>(null);
   const campfireFlameRef = useRef<THREE.Mesh>(null);
@@ -115,6 +115,7 @@ export function Terrain() {
         turfInstRef.current!.setMatrixAt(i, dummy.matrix);
       });
       turfInstRef.current.instanceMatrix.needsUpdate = true;
+      turfInstRef.current.computeBoundingSphere();
     }
     if (cliffInstRef.current) {
       mountainCliffs.forEach((b, i) => {
@@ -125,6 +126,7 @@ export function Terrain() {
         cliffInstRef.current!.setMatrixAt(i, dummy.matrix);
       });
       cliffInstRef.current.instanceMatrix.needsUpdate = true;
+      cliffInstRef.current.computeBoundingSphere();
     }
   }, [mountainTurf, mountainCliffs]);
 
@@ -721,6 +723,7 @@ export function Terrain() {
       <instancedMesh
         ref={turfInstRef}
         args={[roundedBlockGeo, undefined, mountainTurf.length]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >
@@ -729,6 +732,7 @@ export function Terrain() {
       <instancedMesh
         ref={cliffInstRef}
         args={[roundedBlockGeo, undefined, mountainCliffs.length]}
+        frustumCulled={false}
         castShadow
         receiveShadow
       >

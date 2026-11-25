@@ -154,21 +154,22 @@ export function SpringWater() {
     riverUniforms.uTime.value = t;
     fountainUniforms.uTime.value = t;
 
-    if (timeOfDay === 'sunset') {
-      riverUniforms.uSkyColor.value.set('#fdba74');
-      riverUniforms.uSunDir.value.set(-0.75, 0.25, -0.45);
-      fountainUniforms.uSkyColor.value.set('#fdba74');
-    } else if (timeOfDay === 'night') {
-      riverUniforms.uSkyColor.value.set('#1e3a8a');
-      riverUniforms.uShallowColor.value.set('#0e7490');
+    if (timeOfDay === 'night') {
+      riverUniforms.uSkyColor.value.set('#3b82f6');
+      riverUniforms.uShallowColor.value.set('#0891b2');
       riverUniforms.uDeepColor.value.set('#082f49');
-      fountainUniforms.uSkyColor.value.set('#1e3a8a');
+      riverUniforms.uSunDir.value.set(-0.45, 0.72, 0.42);
+      fountainUniforms.uSkyColor.value.set('#3b82f6');
+      fountainUniforms.uShallowColor.value.set('#22d3ee');
+      fountainUniforms.uDeepColor.value.set('#0c4a6e');
     } else {
-      riverUniforms.uSkyColor.value.set('#cbeafe');
+      riverUniforms.uSkyColor.value.set('#fdba74');
       riverUniforms.uShallowColor.value.set('#2dd4bf');
       riverUniforms.uDeepColor.value.set('#0d9488');
-      riverUniforms.uSunDir.value.set(0.6, 0.7, -0.4);
-      fountainUniforms.uSkyColor.value.set('#cbeafe');
+      riverUniforms.uSunDir.value.set(-0.75, 0.28, -0.45);
+      fountainUniforms.uSkyColor.value.set('#fdba74');
+      fountainUniforms.uShallowColor.value.set('#38bdf8');
+      fountainUniforms.uDeepColor.value.set('#0284c7');
     }
 
     if (lilyGroupRef.current) {

@@ -15,6 +15,7 @@ import type {
 } from '../config/projects.config';
 import { useWorldStore } from '../store/useWorldStore';
 import { soundEngine } from '../audio/soundEngine';
+import { sanitizeHttpUrl } from '../utils/validation';
 
 const CATEGORIES: ProjectCategory[] = [
   'AI & Agents',
@@ -93,8 +94,10 @@ export function ProjectManagerModal() {
   const [npcName, setNpcName] = useState('Aiden Roy');
   const [npcRole, setNpcRole] = useState('Project Specialist');
   const [npcDialogue, setNpcDialogue] = useState('');
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   useEffect(() => {
+    setUrlError(null);
     if (editingProject) {
       setTitle(editingProject.title);
       setSubtitle(editingProject.subtitle);
@@ -153,6 +156,14 @@ export function ProjectManagerModal() {
   if (!isProjectCreatorOpen) return null;
 
   const handleSave = (andTeleport: boolean) => {
+    const safeLiveUrl = sanitizeHttpUrl(liveUrl);
+    const safeRepoUrl = sanitizeHttpUrl(repoUrl);
+    if ((liveUrl.trim() && !safeLiveUrl) || (repoUrl.trim() && !safeRepoUrl)) {
+      setUrlError('Project URLs must start with https:// or http://');
+      return;
+    }
+    setUrlError(null);
+
     const cleanTitle = title.trim() || 'New Custom Engineering Project';
     const cleanSubtitle =
       subtitle.trim() || 'Full-Stack & AI Simulation System in 3D Story World';
@@ -193,8 +204,8 @@ export function ProjectManagerModal() {
         highlights.length > 0
           ? highlights
           : ['Engineered full-stack system and interactive 3D story monument.'],
-      liveUrl: liveUrl.trim() || 'https://github.com/MohammedBilalA',
-      repoUrl: repoUrl.trim() || 'https://github.com/MohammedBilalA',
+      liveUrl: safeLiveUrl ?? 'https://github.com/MohammedBilalA',
+      repoUrl: safeRepoUrl ?? 'https://github.com/MohammedBilalA',
       npcGuide: {
         name: npcName.trim() || 'Project Specialist',
         role: npcRole.trim() || 'Engineering Guide',
@@ -527,9 +538,12 @@ export function ProjectManagerModal() {
                   Live Demo URL
                 </label>
                 <input
-                  type="text"
+                  type="url"
                   value={liveUrl}
-                  onChange={(e) => setLiveUrl(e.target.value)}
+                  onChange={(e) => {
+                    setLiveUrl(e.target.value);
+                    if (urlError) setUrlError(null);
+                  }}
                   className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-1.5 text-xs text-white focus:border-emerald-400 focus:outline-none"
                 />
               </div>
@@ -538,13 +552,19 @@ export function ProjectManagerModal() {
                   GitHub Repo URL
                 </label>
                 <input
-                  type="text"
+                  type="url"
                   value={repoUrl}
-                  onChange={(e) => setRepoUrl(e.target.value)}
+                  onChange={(e) => {
+                    setRepoUrl(e.target.value);
+                    if (urlError) setUrlError(null);
+                  }}
                   className="mt-1 w-full rounded-xl border border-white/15 bg-slate-950 px-3 py-1.5 text-xs text-white focus:border-emerald-400 focus:outline-none"
                 />
               </div>
             </div>
+            {urlError && (
+              <p className="text-[11px] font-medium text-rose-400">{urlError}</p>
+            )}
 
             {/* NPC Specialist Guide */}
             <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-3">
